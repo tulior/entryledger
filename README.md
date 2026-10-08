@@ -24,6 +24,46 @@ const [title, brief] = renderArtifacts(result); // exactly two plaintext strings
 
 The production evidence verifier should be backed by authenticated, immutable fetch receipts held outside the researching model's write permissions. It checks that `receiptId` maps to `source.url`, that `quote` appears at the supplied `locator`, and that the snapshot is authentic. It must also provide independent `reviewSource` and `reviewStatement` decisions (not agent self-attestations). A quote matching a page is necessary but **not sufficient** to establish that the page supports the proposition. Add independent semantic entailment review before setting `verified`, particularly for consequential claims. Publication governance should independently confirm source reliability and notability assessments.
 
+## Direct-to-LLM intermediate representation (IR)
+
+**One canonical source:** `DossierSchema` is strict JSON-native Zod 4.
+`DossierStandardSchema` exports the very same object: its native
+`["~standard"].validate(value)` implements Standard Schema v1, with no adapter.
+`getDossierJSONSchema()` exports native `z.toJSONSchema(DossierSchema,
+{io:'input',target:'draft-2020-12'})`. Use that schema directly in a
+structured-output LLM request, then submit its JSON response unchanged to
+`validateDossier`. The model does **not** generate an intermediate DTO.
+
+```ts
+import {DossierStandardSchema,getDossierJSONSchema,validateDossier} from './contract.ts';
+import {renderArtifacts} from './render.ts';
+
+const llmSchema=getDossierJSONSchema();
+const raw:unknown=await generateStructuredJSON(llmSchema); // your model provider
+const structural=await DossierStandardSchema['~standard'].validate(raw);
+if(structural.issues)throw Error('Invalid dossier shape');
+const checked=await validateDossier(raw,productionReceiptVerifier);
+if(!checked.ok)throw Error(JSON.stringify(checked.errors));
+const [proposedTitle,editorialBrief]=renderArtifacts(checked);
+```
+
+Portable, **native** JSON Schema export (stdout contains JSON only):
+
+```sh
+bun run schema:export > dossier.schema.json
+```
+
+This is a breaking IR revision: `schemaVersion: "2.0.0"`. All arrays, flags,
+and editorial-risk labels are explicit—no omitted-field defaults, coercion,
+or string trimming. The JSON Schema enforces shapes, discriminated unions,
+required fields, and lexical constraints. Source authenticity, semantic
+entailment, references, real Gregorian dates, conflicts, and notability
+are **not expressible** in JSON Schema and remain in `validateDossier`.
+Standard Schema shape success is **not** publication authorization.
+Provider-specific JSON Schema subsets may need a distinct explicitly
+reviewed policy, not a silent lossy schema rewrite. The function
+`generateStructuredJSON` is illustrative and not bundled.
+
 ## Epistemic contract
 
 - `verified`: evidence supports the specific proposition; `direct` needs one source, `corroborated` needs two distinct sources. Verification here means **evidence-checked**, not logically infallible.

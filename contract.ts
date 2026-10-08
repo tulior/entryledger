@@ -4,11 +4,10 @@
 import { z } from 'zod';
 
 const ID = z.string().regex(/^[a-z][a-z0-9_-]{1,63}$/);
-const S = z.string().trim().min(1);
-const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s => {
-  const d = new Date(s + 'T00:00:00Z');
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-}, 'Invalid calendar date');
+// No input normalization: generated JSON is the validated IR.
+const S = z.string().min(1).regex(/\S/, 'Must contain a non-whitespace character');
+// Actual Gregorian validity remains a post-parse semantic check.
+const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const Time = z.iso.datetime({offset: true});
 const Dated = z.discriminatedUnion('precision', [
   z.object({precision:z.literal('year'), value:z.string().regex(/^\d{4}$/)}).strict(),
@@ -25,23 +24,23 @@ const Categories = Category.options;
 
 const Entity = z.object({
   id:ID, kind:z.enum(['person','organization','place','work','event','concept','artifact','other']),
-  name:S, aliases:z.array(S).default([])
+  name:S, aliases:z.array(S)
 }).strict();
 const Source = z.object({
-  id:ID, url:z.url(), title:S, authors:z.array(S).default([]), publisher:S,
+  id:ID, url:z.url(), title:S, authors:z.array(S), publisher:S,
   kind:z.enum(['primary','independent_secondary','affiliated_secondary','tertiary']),
   published:Dated.optional(), accessed:Time,
   quality:z.object({
     assessment:z.enum(['high','medium','low','unassessed']),
     rationale:S, independenceRationale:S,
     editorialOversight:z.boolean(), coverage:z.enum(['substantial','passing','reference']),
-    limitations:z.array(S).default([])
+    limitations:z.array(S)
   }).strict()
 }).strict();
 const Evidence = z.object({
-  id:ID, sourceId:ID, receiptId:ID, quote:z.string().trim().min(12), locator:S,
+  id:ID, sourceId:ID, receiptId:ID, quote:z.string().min(12).regex(/\S/), locator:S,
   stance:z.enum(['supports','challenges','context']),
-  challengesClaimIds:z.array(ID).default([]), observedAt:Time
+  challengesClaimIds:z.array(ID), observedAt:Time
 }).strict();
 const ObjectValue = z.discriminatedUnion('type', [
   z.object({type:z.literal('entity'), entityId:ID}).strict(),
@@ -54,8 +53,8 @@ const Attribution = z.discriminatedUnion('type', [
 const Base = z.object({
   id:ID, category:Category, subjectEntityId:ID, predicate:S, proposition:S,
   object:ObjectValue.optional(), eventDate:Dated.optional(),
-  qualifiers:z.array(S).default([]), exclusiveGroupId:ID.optional(),
-  editorialRisk:z.enum(['critical','high','normal']).default('normal')
+  qualifiers:z.array(S), exclusiveGroupId:ID.optional(),
+  editorialRisk:z.enum(['critical','high','normal'])
 }).strict();
 const Supported = Base.extend({
   status:z.literal('verified'), evidenceIds:z.array(ID).min(1),
@@ -83,11 +82,11 @@ export type Claim = z.infer<typeof ClaimSchema>;
 
 const ResearchAction = z.object({
   id:ID, question:S, method:z.enum(['search','document_review','expert_contact','other']),
-  performedAt:Time, outcome:S, sourceIds:z.array(ID).default([]), resolved:z.boolean()
+  performedAt:Time, outcome:S, sourceIds:z.array(ID), resolved:z.boolean()
 }).strict();
 const Coverage = z.object({
   category:Category, state:z.enum(['covered','not_applicable','unresolved']),
-  reason:S, attemptIds:z.array(ID).default([]), blocking:z.boolean().default(false)
+  reason:S, attemptIds:z.array(ID), blocking:z.boolean()
 }).strict();
 const Rule = z.object({
   id:ID, severity:z.enum(['critical','high','normal']),
@@ -105,7 +104,7 @@ const Presentation = z.object({
 }).strict();
 
 export const DossierSchema = z.object({
-  schemaVersion:z.literal('1.0.0'), origin:z.enum(['research','synthetic_fixture']),
+  schemaVersion:z.literal('2.0.0'), origin:z.enum(['research','synthetic_fixture']),
   subjectEntityId:ID,
   article:z.object({
     title:S.max(180), alternatives:z.array(S),
@@ -117,7 +116,19 @@ export const DossierSchema = z.object({
   researchActions:z.array(ResearchAction), coverage:z.array(Coverage),
   editorialRules:z.array(Rule), notability:Notability, presentation:Presentation
 }).strict();
-export type Dossier = z.infer<typeof DossierSchema>;
+/** Standard Schema v1 is implemented natively by Zod 4 at ["~standard"]. */
+export const DossierStandardSchema = DossierSchema;
+export type DossierInput = z.input<typeof DossierSchema>;
+export type Dossier = z.output<typeof DossierSchema>;
+
+/** Native JSON Schema for direct LLM generation; never a publication certificate. */
+export function getDossierJSONSchema() {
+  return z.toJSONSchema(DossierSchema, {
+    io:'input',
+    target:'draft-2020-12',
+    unrepresentable:'throw'
+  });
+}
 export type SourceRecord = z.infer<typeof Source>;
 export type EvidenceRecord = z.infer<typeof Evidence>;
 
@@ -168,6 +179,17 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
   if (!parsed.success) return {ok:false,errors:parsed.error.issues.map(i=>
     diag('SHAPE',i.path.join('.'),i.message)), warnings:[]};
   const d=parsed.data, errors:Diagnostic[]=[], warnings:Diagnostic[]=[];
+  // JSON Schema cannot check impossible calendar days; no input mutation needed.
+  const validDay=(s:string)=>{
+    const n=Date.parse(s+'T00:00:00.000Z');
+    return Number.isFinite(n)&&new Date(n).toISOString().slice(0,10)===s;
+  };
+  const checkDate=(v:{precision:'year'|'month'|'day';value:string}|undefined,path:string)=>{
+    if(v?.precision==='day'&&!validDay(v.value))
+      errors.push(diag('INVALID_CALENDAR_DATE',path,'Invalid Gregorian calendar day.'));
+  };
+  d.sources.forEach((source,i)=>checkDate(source.published,`sources.${i}.published`));
+  d.claims.forEach((claim,i)=>checkDate(claim.eventDate,`claims.${i}.eventDate`));
   const fail=(code:string,path:string,message:string)=>errors.push(diag(code,path,message));
   const warn=(code:string,path:string,message:string)=>warnings.push(diag(code,path,message,'warning'));
   if(d.origin==='synthetic_fixture' && !options.allowSyntheticFixture)

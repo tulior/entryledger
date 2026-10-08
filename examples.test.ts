@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import {validateDossier, type EvidenceVerifier, type Dossier} from './contract.ts';
+import {DossierSchema,DossierStandardSchema,getDossierJSONSchema,validateDossier,type EvidenceVerifier,type Dossier} from './contract.ts';
 import {renderArtifacts} from './render.ts';
 
 const at='2026-10-08T00:00:00Z';
@@ -34,7 +34,7 @@ const verifier:EvidenceVerifier={
 };
 
 export const fixture:Dossier={
-  schemaVersion:'1.0.0',origin:'synthetic_fixture',subjectEntityId:'kestrel',
+  schemaVersion:'2.0.0',origin:'synthetic_fixture',subjectEntityId:'kestrel',
   article:{title:'Kestrel Atlas (fictional test project)',alternatives:['Kestrel Atlas'],
     scope:'standalone_candidate',scopeClaimIds:['identity'],disambiguationClaimIds:[]},
   entities:[{id:'kestrel',kind:'work',name:'Kestrel Atlas',aliases:[]}],
@@ -162,4 +162,48 @@ test('mandatory information cannot be silently truncated',async()=>{
   const report=await validatedFixture();
   expect(()=>renderArtifacts(report,{maxChars:500})).toThrow(/MANDATORY_OVERFLOW/);
   expect(()=>renderArtifacts(report,{maxChars:5001})).toThrow(/maxChars/);
+});
+
+
+test('Standard Schema accepts direct JSON IR unchanged',async()=>{
+  const raw=JSON.parse(JSON.stringify(fixture));
+  const parsed=await DossierStandardSchema['~standard'].validate(raw);
+  expect(parsed.issues).toBeUndefined();
+  if(!('value' in parsed))throw Error('Expected a Standard Schema parsed value');
+  expect(parsed.value).toEqual(raw);
+  expect(DossierSchema.parse(raw)).toEqual(raw);
+  const report=await validateDossier(raw,verifier,{allowSyntheticFixture:true});
+  expect(report.ok).toBe(true);
+});
+
+test('native JSON Schema is strict Draft 2020-12 for the same input',()=>{
+  const schema=getDossierJSONSchema();
+  expect(schema.$schema).toContain('2020-12');
+  expect(schema.type).toBe('object');
+  expect(schema.additionalProperties).toBe(false);
+  expect(schema.required).toContain('entities');
+  expect(schema.required).toContain('claims');
+  expect(schema.required).toContain('presentation');
+  expect(JSON.parse(JSON.stringify(schema))).toEqual(schema);
+});
+
+test('IR has no defaults, coercion, trimming or unknown keys',()=>{
+  const missing=structuredClone(fixture);
+  delete (missing.entities[0] as Partial<typeof missing.entities[number]>).aliases;
+  expect(DossierSchema.safeParse(missing).success).toBe(false);
+  const blank=structuredClone(fixture);
+  blank.article.title='  ';
+  expect(DossierSchema.safeParse(blank).success).toBe(false);
+  const extra=structuredClone(fixture) as typeof fixture & {unknownKey?:boolean};
+  extra.unknownKey=true;
+  expect(DossierSchema.safeParse(extra).success).toBe(false);
+});
+
+test('actual calendar days are checked as semantic invariants',async()=>{
+  const wrong=structuredClone(fixture);
+  wrong.sources[0]!.published={precision:'day',value:'2025-02-30'};
+  expect(DossierSchema.safeParse(wrong).success).toBe(true);
+  const reviewed=await validateDossier(wrong,verifier,{allowSyntheticFixture:true});
+  expect(reviewed.ok).toBe(false);
+  if(!reviewed.ok)expect(reviewed.errors.some(e=>e.code==='INVALID_CALENDAR_DATE')).toBe(true);
 });
