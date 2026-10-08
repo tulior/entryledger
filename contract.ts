@@ -102,7 +102,10 @@ export const DossierSchema=Type.Object({
  evidence:Type.Array(Evidence),claims:Type.Array(ClaimSchema,{minItems:1}),
  researchActions:Type.Array(ResearchAction),coverage:Type.Array(Coverage),
  editorialRules:Type.Array(Rule),notability:Notability,presentation:Presentation
-},{$schema:'https://json-schema.org/draft/2020-12/schema',additionalProperties:false});
+},{$schema:'https://json-schema.org/draft/2020-12/schema',
+  $id:'https://raw.githubusercontent.com/tulior/entryledger/main/dossier.schema.json',
+  'x-entryledger-ir-revision':'2026-10-08',
+  additionalProperties:false});
 export type Dossier=Type.Static<typeof DossierSchema>;
 export type SourceRecord=Type.Static<typeof Source>;
 export type EvidenceRecord=Type.Static<typeof Evidence>;
