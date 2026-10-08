@@ -1,0 +1,45 @@
+import {test,expect} from 'bun:test';
+import {mkdtemp,rm,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {captureReceipt,createReceiptVerifier,sha256} from './fetch.ts';
+import type {SourceRecord,EvidenceRecord} from '../contract.ts';
+
+test('receipt capture, live re-fetch, source review, and semantic review',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'entryledger-'));
+  const url='https://example.org/test-article';
+  const quote='Kestrel Atlas is a fictional test project.';
+  const page={url,title:'Test document',rawText:quote+' Extra source context.'};
+  const fetchPage=async()=>page;
+  const judge=async()=>({ok:true,reason:'Synthetic offline test oracle only'});
+  try{
+    const {id,receipt}=await captureReceipt(url,quote,{receiptsDir:dir,fetchPage});
+    expect(receipt.rawTextHash).toBe(sha256(page.rawText));
+    const disk=JSON.parse(await readFile(join(dir,id+'.json'),'utf8'));
+    expect(disk.rawText).toBe(page.rawText);
+    const source:SourceRecord={id:'source1',url,title:'Test document',
+      authors:[],publisher:'Synthetic test',kind:'primary',
+      accessed:'2026-10-08T00:00:00Z',
+      quality:{assessment:'low',rationale:'Offline test source',
+        independenceRationale:'Not independent',editorialOversight:false,
+        coverage:'passing',limitations:['Synthetic']}};
+    const evidence:EvidenceRecord={id:'evidence1',sourceId:'source1',
+      receiptId:id,quote,locator:'test excerpt',stance:'supports',
+      challengesClaimIds:[],observedAt:'2026-10-08T00:00:00Z'};
+    const verifier=createReceiptVerifier({receiptsDir:dir,fetchPage,judge});
+    expect(await verifier.reviewSource(source)).toBe(true);
+    expect(await verifier.verify(source,evidence)).toBe(true);
+    expect(await verifier.reviewStatement('A fictional project.','attributed',[evidence])).toBe(true);
+    expect(await verifier.verify(source,{...evidence,quote:'Invented false evidence quoted nowhere'})).toBe(false);
+  }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('receipt capture fails if exact quote is absent from the fetched page',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'entryledger-'));
+ try{
+   await expect(captureReceipt('https://example.org/demo',
+     'This passage is not present',{receiptsDir:dir,
+     fetchPage:async()=>({url:'https://example.org/demo',title:'Fixture',
+       rawText:'Different evidence text'})})).rejects.toThrow('QUOTE_NOT_IN_LIVE_PAGE');
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
