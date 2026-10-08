@@ -1,6 +1,6 @@
-import assert from 'node:assert/strict';
-import {validateDossier, type EvidenceVerifier, type Dossier} from './contract.js';
-import {renderArtifacts} from './render.js';
+import { test, expect } from 'bun:test';
+import {validateDossier, type EvidenceVerifier, type Dossier} from './contract.ts';
+import {renderArtifacts} from './render.ts';
 
 const at='2026-10-08T00:00:00Z';
 const p=(v:string)=>({precision:'day' as const,value:v});
@@ -99,44 +99,67 @@ export const fixture:Dossier={
       {claimId:'release',utility:60},{claimId:'sig',utility:30}]}
 };
 
-async function main(){
-  const v=await validateDossier(fixture,verifier,{allowSyntheticFixture:true});
-  assert.equal(v.ok,true, v.ok?'':JSON.stringify(v.errors));
-  if(!v.ok) throw Error('Impossible');
-  const [title,brief]=renderArtifacts(v);
-  assert.equal(title,'Kestrel Atlas (fictional test project)');
-  assert.ok(brief.length<=5000);
-  assert.match(brief,/NOTABILITY: insufficient/);
-  assert.match(brief,/LIMITATIONS: .*\[S2:§2\]/);
-  assert.match(brief,/AVOID: Do not present this synthetic fixture/);
-  assert.match(brief,/SOURCES:/);
-  assert.deepEqual(renderArtifacts(v),[title,brief]);
-  assert.equal(Object.isFrozen(v.dossier),true);
-  assert.equal(Object.isFrozen(v.dossier.claims[0]),true);
-  assert.throws(()=>renderArtifacts({ok:true,dossier:fixture,warnings:[]} as never),
-    /UNVALIDATED_DOSSIER/);
-  console.log('SAMPLE TITLE:\n'+title+'\n\nSAMPLE BRIEF:\n'+brief);
-  console.log('\nRENDER PASS',brief.length,'characters; deterministic');
-  const production=await validateDossier(fixture,verifier);
-  assert.equal(production.ok,false);
-  if(!production.ok) assert.ok(production.errors.some(e=>e.code==='SYNTHETIC_NOT_PUBLISHABLE'));
-  const badQuote=structuredClone(fixture);
-  badQuote.evidence[0]!.quote='Unrelated content not contained in the trusted receipt.';
-  const failure=await validateDossier(badQuote,verifier,{allowSyntheticFixture:true});
-  assert.equal(failure.ok,false);
-  if(!failure.ok) assert.ok(failure.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE'));
-  const misleading=structuredClone(fixture);
-  misleading.claims[0]!.proposition='A real project documented by historians.';
-  const misleadingResult=await validateDossier(misleading,verifier,{allowSyntheticFixture:true});
-  assert.equal(misleadingResult.ok,false);
-  if(!misleadingResult.ok) assert.ok(misleadingResult.errors.some(e=>e.code==='UNREVIEWED_CLAIM'));
-  const dangling=structuredClone(fixture);
-  dangling.claims[0]!.subjectEntityId='missing';
-  const broken=await validateDossier(dangling,verifier,{allowSyntheticFixture:true});
-  assert.equal(broken.ok,false);
-  if(!broken.ok) assert.ok(broken.errors.some(e=>e.code==='DANGLING_REFERENCE'));
-  const tooSmall=()=>renderArtifacts(v,{maxChars:500});
-  assert.throws(tooSmall,/MANDATORY_OVERFLOW/);
-  console.log('VALIDATION PASS: fixture blocked in production, forged report rejected, bad quote blocked, unsupported proposition blocked, dangling reference blocked, overflow blocked');
+
+async function validatedFixture(){
+  const report=await validateDossier(fixture,verifier,{allowSyntheticFixture:true});
+  expect(report.ok).toBe(true);
+  if(!report.ok) throw Error(JSON.stringify(report.errors));
+  return report;
 }
-main().catch(e=>{console.error(e);process.exitCode=1});
+
+test('renders exactly two deterministic, source-backed plaintext artifacts',async()=>{
+  const report=await validatedFixture();
+  const result=renderArtifacts(report);
+  expect(result).toHaveLength(2);
+  const [title,brief]=result;
+  expect(title).toBe('Kestrel Atlas (fictional test project)');
+  expect(brief.length).toBeLessThanOrEqual(5000);
+  expect(brief).toContain('NOTABILITY: insufficient');
+  expect(brief).toMatch(/LIMITATIONS: .*\[S2:§2\]/);
+  expect(brief).toContain('AVOID: Do not present this synthetic fixture');
+  expect(brief).toContain('SOURCES:');
+  expect(renderArtifacts(report)).toEqual(result);
+  expect(Object.isFrozen(report.dossier)).toBe(true);
+  expect(Object.isFrozen(report.dossier.claims[0])).toBe(true);
+});
+
+test('forged success reports cannot authorize rendering',()=>{
+  expect(()=>renderArtifacts({ok:true,dossier:fixture,warnings:[]} as never))
+    .toThrow(/UNVALIDATED_DOSSIER/);
+});
+
+test('synthetic test data cannot be validated for publication',async()=>{
+  const report=await validateDossier(fixture,verifier);
+  expect(report.ok).toBe(false);
+  if(!report.ok) expect(report.errors.some(e=>e.code==='SYNTHETIC_NOT_PUBLISHABLE')).toBe(true);
+});
+
+test('unverified source quotations block a dossier',async()=>{
+  const altered=structuredClone(fixture);
+  altered.evidence[0]!.quote='Unrelated content not contained in the trusted receipt.';
+  const report=await validateDossier(altered,verifier,{allowSyntheticFixture:true});
+  expect(report.ok).toBe(false);
+  if(!report.ok) expect(report.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE')).toBe(true);
+});
+
+test('quoted evidence does not automatically verify a different proposition',async()=>{
+  const altered=structuredClone(fixture);
+  altered.claims[0]!.proposition='A real project documented by historians.';
+  const report=await validateDossier(altered,verifier,{allowSyntheticFixture:true});
+  expect(report.ok).toBe(false);
+  if(!report.ok) expect(report.errors.some(e=>e.code==='UNREVIEWED_CLAIM')).toBe(true);
+});
+
+test('dangling entity references are rejected',async()=>{
+  const altered=structuredClone(fixture);
+  altered.claims[0]!.subjectEntityId='missing';
+  const report=await validateDossier(altered,verifier,{allowSyntheticFixture:true});
+  expect(report.ok).toBe(false);
+  if(!report.ok) expect(report.errors.some(e=>e.code==='DANGLING_REFERENCE')).toBe(true);
+});
+
+test('mandatory information cannot be silently truncated',async()=>{
+  const report=await validatedFixture();
+  expect(()=>renderArtifacts(report,{maxChars:500})).toThrow(/MANDATORY_OVERFLOW/);
+  expect(()=>renderArtifacts(report,{maxChars:5001})).toThrow(/maxChars/);
+});

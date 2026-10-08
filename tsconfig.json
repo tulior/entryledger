@@ -1,8 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
-    "strict": true, "exactOptionalPropertyTypes": true, "noUncheckedIndexedAccess": true,
-    "skipLibCheck": true, "noEmit": true, "lib": ["ES2022","DOM"]
+    "target": "ES2022",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "types": [
+      "bun"
+    ],
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": [
+      "ES2022",
+      "DOM"
+    ]
   },
-  "include": ["*.ts"]
+  "include": [
+    "*.ts",
+    "scripts/**/*.ts"
+  ]
 }

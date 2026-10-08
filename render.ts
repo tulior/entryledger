@@ -1,5 +1,5 @@
 /** Only consumes a dossier returned by validateDossier: pass via a branded wrapper. */
-import { assertValidatedReport, type Claim, type ValidatedDossier } from './contract.js';
+import { assertValidatedReport, type Claim, type ValidatedDossier } from './contract.ts';
 
 const ORDER=[
  'identity','disambiguation','scope','definition','chronology','people_organizations',

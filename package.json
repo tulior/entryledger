@@ -1,11 +1,17 @@
 {
-  "name": "encyclopedia-dossier-contract",
+  "name": "entryledger",
   "private": true,
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "tsx examples.test.ts"
+    "test": "bun test",
+    "upgrade:all": "bun scripts/upgrade-all.ts"
   },
-  "dependencies": {"zod":"^4.0.0"},
-  "devDependencies": {"@types/node":"^22.0.0","tsx":"^4.0.0","typescript":"^5.0.0"}
+  "dependencies": {
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "next"
+  }
 }

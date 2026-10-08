@@ -2,11 +2,15 @@
 
 ## Installation and use
 
-```sh
-npm install
-npm run check
-npm test
+ ```sh
+bun run upgrade:all       # resolves all dependencies including alpha/beta/RC, writes bun.lock
+bun run check             # TypeScript static checking
+bun test                  # native Bun tests
 ```
+
+Prerequisite: Bun. The manifest's initial registry tags are bootstrap placeholders, **not verified newest-version pins**. Run `bun run upgrade:all` first: the resolver queries published SemVer versions, selects the highest non-deprecated version even if prerelease, writes exact versions to package.json, and invokes `bun install` to write `bun.lock`. Commit the resulting manifest and lockfile for reproducibility. Use `bun run upgrade:all --dry-run` to inspect versions without changes. Registry access is required.
+
+No npm scripts or tsx runner remain. `@types/bun` supplies Bun globals and Node compatibility types; a direct `@types/node` dependency is unnecessary. Retain `typescript` for static analysis (Bun only transpiles TypeScript). Keep behavioral tests: Zod shape validation alone cannot test source-verifier decisions, dangling references, forged reports, deterministic rendering, or the 5,000-character cap.
 
 Run tests with an **explicitly fictional fixture**: `origin: synthetic_fixture` can be validated only by a caller that passes `allowSyntheticFixture: true`. Production code should never pass that option. The test receipt verifier is a local stub and **must not be used in production**.
 
