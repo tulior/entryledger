@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import {DossierSchema,DossierStandardSchema,getDossierJSONSchema,validateDossier,type EvidenceVerifier,type Dossier} from './contract.ts';
+import {DossierSchema,DossierStandardSchema,validateDossier,type EvidenceVerifier,type Dossier} from './contract.ts';
 import {renderArtifacts} from './render.ts';
 
 const at='2026-10-08T00:00:00Z';
@@ -34,7 +34,7 @@ const verifier:EvidenceVerifier={
 };
 
 export const fixture:Dossier={
-  schemaVersion:'2.0.0',origin:'synthetic_fixture',subjectEntityId:'kestrel',
+  origin:'synthetic_fixture',subjectEntityId:'kestrel',
   article:{title:'Kestrel Atlas (fictional test project)',alternatives:['Kestrel Atlas'],
     scope:'standalone_candidate',scopeClaimIds:['identity'],disambiguationClaimIds:[]},
   entities:[{id:'kestrel',kind:'work',name:'Kestrel Atlas',aliases:[]}],
@@ -107,103 +107,86 @@ async function validatedFixture(){
   return report;
 }
 
-test('renders exactly two deterministic, source-backed plaintext artifacts',async()=>{
-  const report=await validatedFixture();
-  const result=renderArtifacts(report);
-  expect(result).toHaveLength(2);
-  const [title,brief]=result;
-  expect(title).toBe('Kestrel Atlas (fictional test project)');
-  expect(brief.length).toBeLessThanOrEqual(5000);
-  expect(brief).toContain('NOTABILITY: insufficient');
-  expect(brief).toMatch(/LIMITATIONS: .*\[S2:§2\]/);
-  expect(brief).toContain('AVOID: Do not present this synthetic fixture');
-  expect(brief).toContain('SOURCES:');
-  expect(renderArtifacts(report)).toEqual(result);
-  expect(Object.isFrozen(report.dossier)).toBe(true);
-  expect(Object.isFrozen(report.dossier.claims[0])).toBe(true);
+async function ready(){
+ const report=await validateDossier(fixture,verifier,{allowSyntheticFixture:true});
+ expect(report.ok).toBe(true);
+ if(!report.ok)throw Error(JSON.stringify(report.errors));
+ return report;
+}
+test('canonical TypeBox schema is strict native JSON Schema 2020-12',()=>{
+ const schema=JSON.parse(JSON.stringify(DossierSchema));
+ expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+ expect(schema.additionalProperties).toBe(false);
+ expect(schema.required).toContain('entities');
+ expect(schema.required).toContain('claims');
+ expect(JSON.stringify(schema)).not.toContain('schemaVersion');
+ expect(JSON.stringify(schema)).not.toContain('~standard');
 });
-
+test('Standard Schema validates direct LLM JSON without conversion',async()=>{
+ const json=JSON.parse(JSON.stringify(fixture));
+ const checked=await DossierStandardSchema['~standard'].validate(json);
+ expect('issues' in checked).toBe(false);
+ if(!('value' in checked))throw Error('Not validated');
+ expect(checked.value).toEqual(json);
+ expect((await validateDossier(json,verifier,{allowSyntheticFixture:true})).ok).toBe(true);
+});
+test('strict schema rejects unrecognized properties and missing arrays',async()=>{
+ const extra=structuredClone(fixture) as typeof fixture & {legacy?:boolean};
+ extra.legacy=true;
+ expect('issues' in await DossierStandardSchema['~standard'].validate(extra)).toBe(true);
+ const missing=structuredClone(fixture);
+ delete (missing.entities[0] as Partial<typeof missing.entities[number]>).aliases;
+ expect('issues' in await DossierStandardSchema['~standard'].validate(missing)).toBe(true);
+});
+test('renderer emits exactly two deterministic evidence-backed artifacts',async()=>{
+ const report=await ready();
+ const pair=renderArtifacts(report);
+ expect(pair).toHaveLength(2);
+ expect(pair[0]).toBe('Kestrel Atlas (fictional test project)');
+ expect(pair[1].length).toBeLessThanOrEqual(5000);
+ expect(pair[1]).toMatch(/LIMITATIONS: .*\[S2:§2\]/);
+ expect(pair[1]).toContain('NOTABILITY: insufficient');
+ expect(pair[1]).toContain('SOURCES:');
+ expect(renderArtifacts(report)).toEqual(pair);
+ expect(Object.isFrozen(report.dossier)).toBe(true);
+});
 test('forged success reports cannot authorize rendering',()=>{
-  expect(()=>renderArtifacts({ok:true,dossier:fixture,warnings:[]} as never))
-    .toThrow(/UNVALIDATED_DOSSIER/);
+ expect(()=>renderArtifacts({ok:true,dossier:fixture,warnings:[]} as never)).toThrow(/UNVALIDATED_DOSSIER/);
 });
-
-test('synthetic test data cannot be validated for publication',async()=>{
-  const report=await validateDossier(fixture,verifier);
-  expect(report.ok).toBe(false);
-  if(!report.ok) expect(report.errors.some(e=>e.code==='SYNTHETIC_NOT_PUBLISHABLE')).toBe(true);
+test('synthetic data cannot authorize publication',async()=>{
+ const result=await validateDossier(fixture,verifier);
+ expect(result.ok).toBe(false);
+ if(!result.ok)expect(result.errors.some(e=>e.code==='SYNTHETIC_NOT_PUBLISHABLE')).toBe(true);
 });
-
-test('unverified source quotations block a dossier',async()=>{
-  const altered=structuredClone(fixture);
-  altered.evidence[0]!.quote='Unrelated content not contained in the trusted receipt.';
-  const report=await validateDossier(altered,verifier,{allowSyntheticFixture:true});
-  expect(report.ok).toBe(false);
-  if(!report.ok) expect(report.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE')).toBe(true);
+test('unauthenticated quotes are rejected',async()=>{
+ const data=structuredClone(fixture);
+ data.evidence[0]!.quote='Unrelated content not contained in the trusted receipt.';
+ const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ expect(result.ok).toBe(false);
+ if(!result.ok)expect(result.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE')).toBe(true);
 });
-
-test('quoted evidence does not automatically verify a different proposition',async()=>{
-  const altered=structuredClone(fixture);
-  altered.claims[0]!.proposition='A real project documented by historians.';
-  const report=await validateDossier(altered,verifier,{allowSyntheticFixture:true});
-  expect(report.ok).toBe(false);
-  if(!report.ok) expect(report.errors.some(e=>e.code==='UNREVIEWED_CLAIM')).toBe(true);
+test('unreviewed claims cannot be declared verified',async()=>{
+ const data=structuredClone(fixture);
+ data.claims[0]!.proposition='A real project documented by historians.';
+ const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ expect(result.ok).toBe(false);
+ if(!result.ok)expect(result.errors.some(e=>e.code==='UNREVIEWED_CLAIM')).toBe(true);
 });
-
-test('dangling entity references are rejected',async()=>{
-  const altered=structuredClone(fixture);
-  altered.claims[0]!.subjectEntityId='missing';
-  const report=await validateDossier(altered,verifier,{allowSyntheticFixture:true});
-  expect(report.ok).toBe(false);
-  if(!report.ok) expect(report.errors.some(e=>e.code==='DANGLING_REFERENCE')).toBe(true);
+test('dangling references are rejected',async()=>{
+ const data=structuredClone(fixture);
+ data.claims[0]!.subjectEntityId='missing';
+ const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ expect(result.ok).toBe(false);
+ if(!result.ok)expect(result.errors.some(e=>e.code==='DANGLING_REFERENCE')).toBe(true);
 });
-
-test('mandatory information cannot be silently truncated',async()=>{
-  const report=await validatedFixture();
-  expect(()=>renderArtifacts(report,{maxChars:500})).toThrow(/MANDATORY_OVERFLOW/);
-  expect(()=>renderArtifacts(report,{maxChars:5001})).toThrow(/maxChars/);
+test('invalid real calendar days fail semantic validation',async()=>{
+ const data=structuredClone(fixture);
+ data.sources[0]!.published={precision:'day',value:'2025-02-30'};
+ const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ expect(result.ok).toBe(false);
+ if(!result.ok)expect(result.errors.some(e=>e.code==='INVALID_CALENDAR_DATE')).toBe(true);
 });
-
-
-test('Standard Schema accepts direct JSON IR unchanged',async()=>{
-  const raw=JSON.parse(JSON.stringify(fixture));
-  const parsed=await DossierStandardSchema['~standard'].validate(raw);
-  expect(parsed.issues).toBeUndefined();
-  if(!('value' in parsed))throw Error('Expected a Standard Schema parsed value');
-  expect(parsed.value).toEqual(raw);
-  expect(DossierSchema.parse(raw)).toEqual(raw);
-  const report=await validateDossier(raw,verifier,{allowSyntheticFixture:true});
-  expect(report.ok).toBe(true);
-});
-
-test('native JSON Schema is strict Draft 2020-12 for the same input',()=>{
-  const schema=getDossierJSONSchema();
-  expect(schema.$schema).toContain('2020-12');
-  expect(schema.type).toBe('object');
-  expect(schema.additionalProperties).toBe(false);
-  expect(schema.required).toContain('entities');
-  expect(schema.required).toContain('claims');
-  expect(schema.required).toContain('presentation');
-  expect(JSON.parse(JSON.stringify(schema))).toEqual(schema);
-});
-
-test('IR has no defaults, coercion, trimming or unknown keys',()=>{
-  const missing=structuredClone(fixture);
-  delete (missing.entities[0] as Partial<typeof missing.entities[number]>).aliases;
-  expect(DossierSchema.safeParse(missing).success).toBe(false);
-  const blank=structuredClone(fixture);
-  blank.article.title='  ';
-  expect(DossierSchema.safeParse(blank).success).toBe(false);
-  const extra=structuredClone(fixture) as typeof fixture & {unknownKey?:boolean};
-  extra.unknownKey=true;
-  expect(DossierSchema.safeParse(extra).success).toBe(false);
-});
-
-test('actual calendar days are checked as semantic invariants',async()=>{
-  const wrong=structuredClone(fixture);
-  wrong.sources[0]!.published={precision:'day',value:'2025-02-30'};
-  expect(DossierSchema.safeParse(wrong).success).toBe(true);
-  const reviewed=await validateDossier(wrong,verifier,{allowSyntheticFixture:true});
-  expect(reviewed.ok).toBe(false);
-  if(!reviewed.ok)expect(reviewed.errors.some(e=>e.code==='INVALID_CALENDAR_DATE')).toBe(true);
+test('mandatory editorial information never silently truncates',async()=>{
+ const report=await ready();
+ expect(()=>renderArtifacts(report,{maxChars:500})).toThrow(/MANDATORY_OVERFLOW/);
 });

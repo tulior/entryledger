@@ -5,14 +5,13 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "bun test",
-    "upgrade:all": "bun scripts/upgrade-all.ts",
     "schema:export": "bun scripts/export-schema.ts"
   },
   "dependencies": {
-    "zod": "latest"
+    "typebox": "1.3.36"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "next"
+    "@types/bun": "1.4.2",
+    "typescript": "7.1.0-dev.20261007.1"
   }
 }

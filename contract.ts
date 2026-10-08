@@ -1,136 +1,122 @@
-/** Evidence-grounded encyclopedia research dossier, v1. Zod 4 + TypeScript 5.
- * Domain facts never carry render-ready citations: those are derived from evidence.
- */
-import { z } from 'zod';
+/** EntryLedger: native TypeBox JSON Schema, with no input transformations. */
+import Type from 'typebox';
+import Value from 'typebox/value';
 
-const ID = z.string().regex(/^[a-z][a-z0-9_-]{1,63}$/);
-// No input normalization: generated JSON is the validated IR.
-const S = z.string().min(1).regex(/\S/, 'Must contain a non-whitespace character');
-// Actual Gregorian validity remains a post-parse semantic check.
-const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const Time = z.iso.datetime({offset: true});
-const Dated = z.discriminatedUnion('precision', [
-  z.object({precision:z.literal('year'), value:z.string().regex(/^\d{4}$/)}).strict(),
-  z.object({precision:z.literal('month'), value:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)}).strict(),
-  z.object({precision:z.literal('day'), value:Day}).strict(),
+const obj=<P extends Record<string,unknown>>(properties:P)=>Type.Object(properties,{additionalProperties:false});
+const ID=Type.String({minLength:2,maxLength:64,pattern:'^[a-z][a-z0-9_-]{1,63}$'});
+const S=Type.String({minLength:1,pattern:'\\S'});
+const Time=Type.String({pattern:'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$'});
+const Day=Type.String({pattern:'^\\d{4}-\\d{2}-\\d{2}$'});
+const Dated=Type.Union([
+ obj({precision:Type.Literal('year'),value:Type.String({pattern:'^\\d{4}$'})}),
+ obj({precision:Type.Literal('month'),value:Type.String({pattern:'^\\d{4}-(0[1-9]|1[0-2])$'})}),
+ obj({precision:Type.Literal('day'),value:Day})
 ]);
-const Category = z.enum([
-  'identity','disambiguation','scope','definition','chronology','people_organizations',
-  'relationships','characteristics','significance','reception','controversies',
-  'limitations','editorial_cautions'
+const Categories=['identity','disambiguation','scope','definition','chronology',
+ 'people_organizations','relationships','characteristics','significance',
+ 'reception','controversies','limitations','editorial_cautions'] as const;
+const Category=Type.Union([
+ Type.Literal('identity'),Type.Literal('disambiguation'),Type.Literal('scope'),
+ Type.Literal('definition'),Type.Literal('chronology'),Type.Literal('people_organizations'),
+ Type.Literal('relationships'),Type.Literal('characteristics'),Type.Literal('significance'),
+ Type.Literal('reception'),Type.Literal('controversies'),Type.Literal('limitations'),
+ Type.Literal('editorial_cautions')]);
+export type Category=Type.Static<typeof Category>;
+const Entity=obj({id:ID,kind:Type.Union([
+ Type.Literal('person'),Type.Literal('organization'),Type.Literal('place'),
+ Type.Literal('work'),Type.Literal('event'),Type.Literal('concept'),
+ Type.Literal('artifact'),Type.Literal('other')]),name:S,aliases:Type.Array(S)});
+const Source=obj({
+ id:ID,url:Type.String({pattern:'^https?://\\S+$'}),title:S,
+ authors:Type.Array(S),publisher:S,kind:Type.Union([
+ Type.Literal('primary'),Type.Literal('independent_secondary'),
+ Type.Literal('affiliated_secondary'),Type.Literal('tertiary')]),
+ published:Type.Optional(Dated),accessed:Time,
+ quality:obj({assessment:Type.Union([
+ Type.Literal('high'),Type.Literal('medium'),Type.Literal('low'),Type.Literal('unassessed')]),
+ rationale:S,independenceRationale:S,editorialOversight:Type.Boolean(),
+ coverage:Type.Union([Type.Literal('substantial'),Type.Literal('passing'),
+ Type.Literal('reference')]),limitations:Type.Array(S)})});
+const Evidence=obj({
+ id:ID,sourceId:ID,receiptId:ID,quote:Type.String({minLength:12,pattern:'\\S'}),
+ locator:S,stance:Type.Union([
+ Type.Literal('supports'),Type.Literal('challenges'),Type.Literal('context')]),
+ challengesClaimIds:Type.Array(ID),observedAt:Time});
+const ObjectValue=Type.Union([
+ obj({type:Type.Literal('entity'),entityId:ID}),
+ obj({type:Type.Literal('literal'),value:S,unit:Type.Optional(S)})
 ]);
-export type Category = z.infer<typeof Category>;
-const Categories = Category.options;
-
-const Entity = z.object({
-  id:ID, kind:z.enum(['person','organization','place','work','event','concept','artifact','other']),
-  name:S, aliases:z.array(S)
-}).strict();
-const Source = z.object({
-  id:ID, url:z.url(), title:S, authors:z.array(S), publisher:S,
-  kind:z.enum(['primary','independent_secondary','affiliated_secondary','tertiary']),
-  published:Dated.optional(), accessed:Time,
-  quality:z.object({
-    assessment:z.enum(['high','medium','low','unassessed']),
-    rationale:S, independenceRationale:S,
-    editorialOversight:z.boolean(), coverage:z.enum(['substantial','passing','reference']),
-    limitations:z.array(S)
-  }).strict()
-}).strict();
-const Evidence = z.object({
-  id:ID, sourceId:ID, receiptId:ID, quote:z.string().min(12).regex(/\S/), locator:S,
-  stance:z.enum(['supports','challenges','context']),
-  challengesClaimIds:z.array(ID), observedAt:Time
-}).strict();
-const ObjectValue = z.discriminatedUnion('type', [
-  z.object({type:z.literal('entity'), entityId:ID}).strict(),
-  z.object({type:z.literal('literal'), value:S, unit:S.optional()}).strict()
+const Attribution=Type.Union([
+ obj({type:Type.Literal('entity'),entityId:ID}),
+ obj({type:Type.Literal('source'),sourceId:ID})
 ]);
-const Attribution = z.discriminatedUnion('type', [
-  z.object({type:z.literal('entity'), entityId:ID}).strict(),
-  z.object({type:z.literal('source'), sourceId:ID}).strict()
-]);
-const Base = z.object({
-  id:ID, category:Category, subjectEntityId:ID, predicate:S, proposition:S,
-  object:ObjectValue.optional(), eventDate:Dated.optional(),
-  qualifiers:z.array(S), exclusiveGroupId:ID.optional(),
-  editorialRisk:z.enum(['critical','high','normal'])
-}).strict();
-const Supported = Base.extend({
-  status:z.literal('verified'), evidenceIds:z.array(ID).min(1),
-  verification:z.enum(['direct','corroborated']),
-});
-const Attributed = Base.extend({
-  status:z.literal('attributed'), evidenceIds:z.array(ID).min(1), attributedTo:Attribution
-});
-const Interpretation = Base.extend({
-  status:z.literal('interpretation'), evidenceIds:z.array(ID).min(1), attributedTo:Attribution,
-  uncertainty:S
-});
-const Disputed = Base.extend({
-  status:z.literal('disputed'),
-  positions:z.array(z.object({position:S, attributedTo:Attribution,
-    evidenceIds:z.array(ID).min(1)}).strict()).min(2),
-  uncertainty:S
-});
-const Unknown = Base.extend({
-  status:z.literal('unknown'), question:S, attemptIds:z.array(ID).min(1), uncertainty:S
-});
-export const ClaimSchema = z.discriminatedUnion('status',
-  [Supported, Attributed, Interpretation, Disputed, Unknown]);
-export type Claim = z.infer<typeof ClaimSchema>;
+const Base=obj({
+ id:ID,category:Category,subjectEntityId:ID,predicate:S,proposition:S,
+ object:Type.Optional(ObjectValue),eventDate:Type.Optional(Dated),
+ qualifiers:Type.Array(S),exclusiveGroupId:Type.Optional(ID),
+ editorialRisk:Type.Union([
+ Type.Literal('critical'),Type.Literal('high'),Type.Literal('normal')])});
+const Verified=obj({...Base.properties,status:Type.Literal('verified'),
+ evidenceIds:Type.Array(ID,{minItems:1}),
+ verification:Type.Union([Type.Literal('direct'),Type.Literal('corroborated')])});
+const Attributed=obj({...Base.properties,status:Type.Literal('attributed'),
+ evidenceIds:Type.Array(ID,{minItems:1}),attributedTo:Attribution});
+const Interpretation=obj({...Base.properties,status:Type.Literal('interpretation'),
+ evidenceIds:Type.Array(ID,{minItems:1}),attributedTo:Attribution,uncertainty:S});
+const Disputed=obj({...Base.properties,status:Type.Literal('disputed'),
+ positions:Type.Array(obj({position:S,attributedTo:Attribution,
+ evidenceIds:Type.Array(ID,{minItems:1})}),{minItems:2}),uncertainty:S});
+const Unknown=obj({...Base.properties,status:Type.Literal('unknown'),
+ question:S,attemptIds:Type.Array(ID,{minItems:1}),uncertainty:S});
+export const ClaimSchema=Type.Union([Verified,Attributed,Interpretation,Disputed,Unknown]);
+export type Claim=Type.Static<typeof ClaimSchema>;
+const ResearchAction=obj({
+ id:ID,question:S,method:Type.Union([Type.Literal('search'),Type.Literal('document_review'),
+ Type.Literal('expert_contact'),Type.Literal('other')]),performedAt:Time,
+ outcome:S,sourceIds:Type.Array(ID),resolved:Type.Boolean()});
+const Coverage=obj({
+ category:Category,state:Type.Union([Type.Literal('covered'),Type.Literal('not_applicable'),
+ Type.Literal('unresolved')]),reason:S,attemptIds:Type.Array(ID),blocking:Type.Boolean()});
+const Rule=obj({
+ id:ID,severity:Type.Union([Type.Literal('critical'),Type.Literal('high'),
+ Type.Literal('normal')]),directive:Type.Union([Type.Literal('avoid'),
+ Type.Literal('require'),Type.Literal('qualify'),Type.Literal('context')]),
+ text:S,groundedClaimIds:Type.Array(ID,{minItems:1})});
+const Notability=obj({assessment:Type.Union([Type.Literal('established'),
+ Type.Literal('uncertain'),Type.Literal('insufficient')]),rationale:S,
+ independentSourceIds:Type.Array(ID),researchActionIds:Type.Array(ID)});
+const Presentation=obj({requiredClaimIds:Type.Array(ID),requiredRuleIds:Type.Array(ID),
+ weights:Type.Array(obj({claimId:ID,utility:Type.Integer({minimum:1,maximum:100})}))});
 
-const ResearchAction = z.object({
-  id:ID, question:S, method:z.enum(['search','document_review','expert_contact','other']),
-  performedAt:Time, outcome:S, sourceIds:z.array(ID), resolved:z.boolean()
-}).strict();
-const Coverage = z.object({
-  category:Category, state:z.enum(['covered','not_applicable','unresolved']),
-  reason:S, attemptIds:z.array(ID), blocking:z.boolean()
-}).strict();
-const Rule = z.object({
-  id:ID, severity:z.enum(['critical','high','normal']),
-  directive:z.enum(['avoid','require','qualify','context']), text:S,
-  groundedClaimIds:z.array(ID).min(1)
-}).strict();
-const Notability = z.object({
-  assessment:z.enum(['established','uncertain','insufficient']), rationale:S,
-  independentSourceIds:z.array(ID), researchActionIds:z.array(ID),
-  // Technical/subject-matter significance is conveyed by claims, NOT by this assessment.
-}).strict();
-const Presentation = z.object({
-  requiredClaimIds:z.array(ID), requiredRuleIds:z.array(ID),
-  weights:z.array(z.object({claimId:ID, utility:z.number().int().min(1).max(100)}).strict())
-}).strict();
+/** Canonical IR = native strict JSON Schema Draft 2020-12, directly LLM-readable. */
+export const DossierSchema=Type.Object({
+ origin:Type.Union([Type.Literal('research'),Type.Literal('synthetic_fixture')]),
+ subjectEntityId:ID,
+ article:obj({title:Type.String({minLength:1,maxLength:180,pattern:'\\S'}),
+ alternatives:Type.Array(S),scope:Type.Union([
+ Type.Literal('standalone_candidate'),Type.Literal('broader_section_candidate'),
+ Type.Literal('undecided')]),scopeClaimIds:Type.Array(ID,{minItems:1}),
+ disambiguationClaimIds:Type.Array(ID)}),
+ entities:Type.Array(Entity,{minItems:1}),sources:Type.Array(Source),
+ evidence:Type.Array(Evidence),claims:Type.Array(ClaimSchema,{minItems:1}),
+ researchActions:Type.Array(ResearchAction),coverage:Type.Array(Coverage),
+ editorialRules:Type.Array(Rule),notability:Notability,presentation:Presentation
+},{$schema:'https://json-schema.org/draft/2020-12/schema',additionalProperties:false});
+export type Dossier=Type.Static<typeof DossierSchema>;
+export type SourceRecord=Type.Static<typeof Source>;
+export type EvidenceRecord=Type.Static<typeof Evidence>;
 
-export const DossierSchema = z.object({
-  schemaVersion:z.literal('2.0.0'), origin:z.enum(['research','synthetic_fixture']),
-  subjectEntityId:ID,
-  article:z.object({
-    title:S.max(180), alternatives:z.array(S),
-    scope:z.enum(['standalone_candidate','broader_section_candidate','undecided']),
-    scopeClaimIds:z.array(ID).min(1), disambiguationClaimIds:z.array(ID)
-  }).strict(),
-  entities:z.array(Entity).min(1), sources:z.array(Source),
-  evidence:z.array(Evidence), claims:z.array(ClaimSchema).min(1),
-  researchActions:z.array(ResearchAction), coverage:z.array(Coverage),
-  editorialRules:z.array(Rule), notability:Notability, presentation:Presentation
-}).strict();
-/** Standard Schema v1 is implemented natively by Zod 4 at ["~standard"]. */
-export const DossierStandardSchema = DossierSchema;
-export type DossierInput = z.input<typeof DossierSchema>;
-export type Dossier = z.output<typeof DossierSchema>;
-
-/** Native JSON Schema for direct LLM generation; never a publication certificate. */
-export function getDossierJSONSchema() {
-  return z.toJSONSchema(DossierSchema, {
-    io:'input',
-    target:'draft-2020-12',
-    unrepresentable:'throw'
-  });
-}
-export type SourceRecord = z.infer<typeof Source>;
-export type EvidenceRecord = z.infer<typeof Evidence>;
+/** Standard Schema v1 structural validation without translating the JSON IR. */
+export const DossierStandardSchema={
+ '~standard':{
+   version:1 as const,vendor:'entryledger-typebox',
+   validate(value:unknown){
+     if(Value.Check(DossierSchema,value))return {value:value as Dossier};
+     return {issues:Value.Errors(DossierSchema,value).map(e=>({message:e.message}))};
+   },
+   types:{} as {input:Dossier;output:Dossier}
+ }
+} as const;
 
 export type Diagnostic = {
   code:string; path:string; message:string; severity:'error'|'warning';
@@ -175,10 +161,13 @@ const distinct=<T>(items:T[]) => new Set(items).size===items.length;
 
 export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
   options:{allowSyntheticFixture?:boolean}={}):Promise<ValidationReport> {
-  const parsed=DossierSchema.safeParse(raw);
-  if (!parsed.success) return {ok:false,errors:parsed.error.issues.map(i=>
-    diag('SHAPE',i.path.join('.'),i.message)), warnings:[]};
-  const d=parsed.data, errors:Diagnostic[]=[], warnings:Diagnostic[]=[];
+  if(!Value.Check(DossierSchema,raw))return {ok:false,warnings:[],
+    errors:Value.Errors(DossierSchema,raw).map(e=>{
+      const path=(e as {path?:string;instancePath?:string}).instancePath ??
+        (e as {path?:string}).path ?? '/';
+      return diag('SHAPE',path,e.message);
+    })};
+  const d=raw as Dossier, errors:Diagnostic[]=[], warnings:Diagnostic[]=[];
   // JSON Schema cannot check impossible calendar days; no input mutation needed.
   const validDay=(s:string)=>{
     const n=Date.parse(s+'T00:00:00.000Z');
