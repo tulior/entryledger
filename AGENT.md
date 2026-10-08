@@ -26,7 +26,7 @@ No configured reviewer means NO publication.
    editorial_cautions. For absent topics use justified not_applicable or
    unresolved with a genuine research action. Never fabricate findings.
 3. Fetch source text using the receipt-capture CLI:
-   bun scripts/capture-receipt.ts "https://example.com/article" "VERBATIM QUOTE"
+   bun run receipt:capture "https://example.com/article" "VERBATIM QUOTE"
    It writes receipts/<receiptId>.json with url, fetchedAt, rawTextHash,
    rawText. The quote must exist verbatim in independently fetched rawText.
    Do not invent receipt files, page titles, locators, publication dates or URLs.
@@ -41,14 +41,14 @@ No configured reviewer means NO publication.
 
 ## Automated self-evaluation
 Run:
-  bun scripts/check-dossier.ts out/dossier.json
+  bun run dossier:check out/dossier.json
 If nonzero, inspect diagnostic codes; correct by gathering real evidence or
 downgrading unjustified certainty. Never silence an error by fabricating a
 source, writing a fake receipt, or changing origin to synthetic_fixture.
 Repeat at most six evidence-based attempts.
 
 When validation passes:
-  bun scripts/render-dossier.ts out/dossier.json
+  bun run dossier:render out/dossier.json
 This independently revalidates; only then is out/artifacts.json publication
 output. It must be exactly [proposed article title, editorial brief]. The
 brief must be at most 5000 characters, preserve critical limitations, and
