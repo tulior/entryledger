@@ -1,102 +1,107 @@
 # EntryLedger
-Evidence-grounded encyclopedia research dossiers with strict TypeBox 1.x
-JSON Schema and deterministic plaintext artifact generation.
 
-## Install / check
-\`\`\`sh
-bun install --frozen-lockfile
-bun run check
-bun test
-bun run schema:verify
-\`\`\`
+A **shape contract for a research handoff**. An agent researches a subject and
+produces two artifacts — a proposed article title and a structured editorial
+brief — in a fixed, machine-checkable shape. A second agent, which verifies the
+references, then writes the wiki article from them.
 
-The three dependencies have exact pins in package.json and a committed
-bun.lock; `bun install --frozen-lockfile` is what CI enforces. No npm, Zod,
-upgrade scripts, old schema versions or migration code. After changing the
-TypeBox definition, regenerate the committed IR with
-`bun run schema:export > dossier.schema.json`; `bun run schema:verify` (run in
-CI) fails the build on semantic drift, ignoring key ordering, which is not
-part of the schema's meaning.
+EntryLedger does not decide what is true. It decides what a well-formed dossier
+looks like, and refuses to emit artifacts that are malformed.
 
-## Autonomous agent execution
+## The one thing to understand
 
-Give your search-enabled agent a subject title and [AGENT.md](AGENT.md).
-It researches the subject, captures source receipts, writes
-`out/dossier.json`, and repeats verification until valid.
-`dossier.schema.json` is the committed direct-JSON IR; `contract.ts`
-provides semantic constraints the JSON schema cannot encode.
+**`dossier:check` passing does NOT mean the content is verified.**
 
-There is no external LLM judge. The researching agent reads the sources and
-judges entailment itself; the machine layer only authenticates quotations.
-Every cited quote must be present on the live source page and match its stored
-receipt, or validation fails closed. Every fetched URL is DNS-resolved and
-refused if it resolves to private, loopback or link-local space, on every
-redirect hop, so a rebinding host cannot reach internal services; an egress
-firewall is still recommended as defence in depth.
+It means the dossier is structurally sound: cross-references resolve, all
+thirteen coverage categories are accounted for, evidence is not orphaned,
+dates are real, and a brief can be rendered inside the character budget.
+
+Whether the claims are *true* is the consumer's job. Every evidence record
+carries the source `url` and the exact `quote` so it can be checked. Treat
+`out/artifacts.json` as a well-organised research brief, never as a source of
+verified fact.
+
+## Commands
 
 ```sh
-bun run receipt:capture 'https://example.org/source' 'Exact quote from the source'
+bun install --frozen-lockfile
+bun run check          # typecheck
+bun test               # offline suite
+bun run schema:verify  # committed IR matches the TypeBox definition
+```
+
+```sh
+bun run page:dump <url> [substring]   # the ONLY command that touches the network
 bun run dossier:check ./out/dossier.json
 bun run dossier:render ./out/dossier.json
 ```
 
-`out/artifacts.json` is the two-string artifact array, only after successful
-re-validation. The brief is capped at 5,000 characters and contains inline
-source citations. `bun test` checks offline fixture, receipt and
-schema-contract invariants; synthetic test evidence is never publishable.
+`page:dump` prints a page exactly as the pipeline extracts it — whitespace
+collapsed, entities decoded. **Copy quotations from this output, not from search
+results.** The two differ: Wikipedia reads `based in Maranello , Italy` with a
+space before the comma. A quote that "looks right" from a search snippet will
+not be found in the source.
 
-## One LLM-to-IR contract
-\`\`\`ts
+It also refuses private, loopback and link-local destinations, including after
+redirects.
+
+## The handoff
+
+`out/dossier.json` is the LLM-facing IR. `dossier.schema.json` is that same
+schema, committed, so a model can be pointed at it directly. The model writes
+JSON; there is no transformation layer.
+
+`out/artifacts.json` is exactly two strings:
+
+```json
+["Proposed article title", "EDITORIAL BRIEF ..."]
+```
+
+The brief is capped at 5,000 characters, groups claims under the thirteen
+coverage categories, and carries inline `[S1:locator]` citations with a source
+bibliography. Mandatory content — verified identity, sourced definition, stated
+limitations, critical cautions — is never truncated. If it cannot fit,
+rendering fails rather than quietly dropping it.
+
+## What blocks and what warns
+
+Errors are **shape** problems. They mean the dossier is malformed and the agent
+should fix it.
+
+Warnings are **judgments the consumer owns**: thin notability evidence, an
+undocumented research gap, a title that drifted from the canonical name. The
+dossier renders, and the concern travels with it for the consumer to resolve.
+
+This split is deliberate. A hard failure on thin notability evidence turns a
+notable subject with unreachable sources into a dead end, and pushes an agent
+toward claiming independence it did not find.
+
+## The one LLM-to-IR contract
+
+```ts
 import {DossierSchema,DossierStandardSchema,validateDossier} from './contract.ts';
-import {createReceiptVerifier} from './verifier/fetch.ts';
 import {renderArtifacts} from './render.ts';
 
 // DossierSchema IS native JSON Schema 2020-12, not a transformed export.
 const raw:unknown=await provider.generate({jsonSchema:DossierSchema});
 const structural=await DossierStandardSchema['~standard'].validate(raw);
 if('issues' in structural)throw Error('Invalid IR');
-const reviewed=await validateDossier(raw,createReceiptVerifier());
-if(!reviewed.ok)throw Error(JSON.stringify(reviewed.errors));
-const [proposedTitle,editorialBrief]=renderArtifacts(reviewed);
-\`\`\`
+const checked=validateDossier(raw);              // shape only, no network
+if(!checked.ok)throw Error(JSON.stringify(checked.errors));
+const [proposedTitle,editorialBrief]=renderArtifacts(checked);
+```
 
-The Standard Schema v1 interface is a tiny validator bridge, not a legacy
-schema or translation layer. It doesn't modify generated JSON or the
-native JSON Schema.
+The Standard Schema v1 interface is a small validator bridge, not a translation
+layer. It does not modify generated JSON or the native JSON Schema.
 
-A quotation is verified by exact substring match against the live page, which
-assumes the quoted text is *stable*. It often is not: any quotation containing a
-rating count, an average rating, a view or subscriber total, or an "N distinct
-works" aggregate is unverifiable within hours. `EVIDENCE_EXPIRED` separates that
-from fabrication, but only for receipts old enough (24h by default) that drift is
-the more plausible reading, and it still fails the dossier closed — it is a
-better diagnosis, never a permission. **Prefer quotations with no live numbers
-in them.**
+## Known limits
 
-## Publication gate
-TypeBox validates shape, not truth. `validateDossier` verifies cross-references,
-authenticated source receipts, support and corroboration structure, source
-quality, disputes and contradictions, real calendar validity, coverage,
-notability and mandatory warnings. Invalid, unsupported and contradictory
-dossiers fail closed, and the synthetic test fixture is blocked by default.
+- `htmlToText` does not parse JavaScript-rendered pages or PDFs. Many sources
+  return 403 to programmatic clients, and most primary documents are PDFs.
+- Many publishers block non-browser clients outright, so coverage of a major
+  subject can be thinner than it should.
+- `auditRender` reports what the character cap discarded, including partial loss
+  inside a surviving category. A brief that fits reports no loss at all.
 
-The machine authenticates *quotations*; the agent is responsible for what they
-*mean*. `verify` proves a quote occurred on the page it is attributed to — it
-does not and cannot establish that the quote entails the claim. Cross-reference,
-stance, corroboration and contradiction rules are structural, so they still
-reject a false dossier no matter what the agent asserts. But a well-quoted
-misreading passes, and that judgement is the agent's to get right.
-
-The renderer produces exactly two plaintext artifacts. The brief has a strict
-5,000-character limit, retaining critical claims, citations, qualifications,
-and source data. A mandatory-content overflow throws rather than truncates,
-and so does a cap that would drop every claim and rule in a load-bearing
-category — `definition`, `limitations` or `editorial_cautions`. `renderArtifacts`
-raises `CATEGORY_OMITTED` rather than publish a brief that reads as complete
-while omitting what the subject is, what is unknown, or the risk guidance. There
-is no option to publish past it. Losing one of the other ten categories is
-reported but not fatal; that is the packer doing its job. `auditRender` returns
-the same artifacts alongside `included`, `dropped` and `lostCategories`, and
-`bun run dossier:check` reports renderability before you publish.
-
-A successful automated check does not replace human editorial source review.
+A successful automated check is a floor, not a ceiling. Nothing here verifies
+that a source said what the dossier claims it said.
