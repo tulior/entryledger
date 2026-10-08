@@ -213,15 +213,19 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
     fail('MISSING_DEFINITION','claims','A sourced definition is required.');
   const evidenceUsed=new Set<string>();
   const verifiedGroups=new Map<string,string>();
+  // Only stance='supports' counts toward support/corroboration. 'context' and
+  // 'challenges' evidence may be cited, but never manufactures corroboration and
+  // never silently upgrades a claim.
   const validateRefs=(ids:string[],claimId:string,stance:'supports'|'any')=>{
     const sourceIds=new Set<string>();
     for(const id of ids){
       evidenceUsed.add(id); exists(evs,id,`claims.${claimId}.evidenceIds`);
       const ev=evs.get(id);
       if(ev){
-        sourceIds.add(ev.sourceId);
-        if(stance==='supports'&&ev.stance!=='supports')
-          fail('BAD_EVIDENCE_STANCE',`claims.${claimId}`,`Evidence ${id} does not support claim.`);
+        if(ev.stance==='supports')sourceIds.add(ev.sourceId);
+        if(stance==='supports'&&ev.stance==='challenges')
+          fail('CONTRADICTORY_CITED_AS_SUPPORT',`claims.${claimId}`,
+            `Evidence ${id} is classified 'challenges' and cannot support claim ${claimId}.`);
       }
     }
     return sourceIds;
@@ -252,6 +256,11 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
         'Disputed positions must draw on at least two different sources.');
     } else {
       const si=validateRefs(c.evidenceIds,c.id,'supports');
+      // A verified claim needs at least one source that actually supports it;
+      // context/challenges citations alone can never carry factual status.
+      if(c.status==='verified'&&si.size<1)
+        fail('UNSUPPORTED_VERIFIED_CLAIM',`claims.${c.id}`,
+          'Verified claims require at least one supporting evidence record.');
       if(c.status==='verified'&&c.verification==='corroborated'&&si.size<2)
         fail('FALSE_CORROBORATION',`claims.${c.id}`,'Corroborated requires two distinct sources.');
       if(c.status==='attributed'||c.status==='interpretation')
@@ -265,10 +274,12 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
   }
   for(const e of d.evidence){
     exists(srcs,e.sourceId,`evidence.${e.id}.sourceId`);
+    // Contradicting/context evidence is legitimately used by being attached to the
+    // claim it bears on; it does not need to be cited as support.
+    for(const id of e.challengesClaimIds) evidenceUsed.add(e.id), exists(cls,id,`evidence.${e.id}.challengesClaimIds`);
     if(!evidenceUsed.has(e.id)) fail('ORPHAN_EVIDENCE',`evidence.${e.id}`,
       'All evidence must be associated with a claim and reviewed.');
     for(const id of e.challengesClaimIds){
-      exists(cls,id,`evidence.${e.id}.challengesClaimIds`);
       if(cls.get(id)?.status==='verified') fail('UNDISCLOSED_CONTRADICTION',
         `evidence.${e.id}`,`Claim ${id} has contradictory evidence; dispute or adjudicate it.`);
     }

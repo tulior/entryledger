@@ -7,12 +7,14 @@ const unusedVerifier:EvidenceVerifier={
  async reviewSource(){throw new Error('Verifier should not be called on structurally bad dossiers');},
  async reviewStatement(){throw new Error('Verifier should not be called on structurally bad dossiers');}
 };
-test('slop fixture fails evidence stance and orphan invariants',async()=>{
+test('slop fixture fails support and orphan invariants',async()=>{
  const data=await read('fixtures/slop.json');
  const verdict=await validateDossier(data,unusedVerifier,{allowSyntheticFixture:true});
  expect(verdict.ok).toBe(false);
  if(!verdict.ok){
-   expect(verdict.errors.map(e=>e.code)).toContain('BAD_EVIDENCE_STANCE');
+   // ev1 is stance='context' yet backs a verified identity claim: a verified
+   // claim must rest on at least one supporting evidence record.
+   expect(verdict.errors.map(e=>e.code)).toContain('UNSUPPORTED_VERIFIED_CLAIM');
    expect(verdict.errors.map(e=>e.code)).toContain('ORPHAN_EVIDENCE');
  }
 });

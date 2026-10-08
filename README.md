@@ -4,16 +4,19 @@ JSON Schema and deterministic plaintext artifact generation.
 
 ## Install / check
 \`\`\`sh
-bun install
+bun install --frozen-lockfile
 bun run check
 bun test
-bun run schema:export > dossier.schema.json
+bun run schema:verify
 \`\`\`
 
-The three dependencies have exact pins in package.json (live newest-release status has not been independently verified). No npm, Zod,
-upgrade scripts, old schema versions or migration code. After a real
-installation, commit bun.lock for reproducibility; a lockfile must never be
-fabricated.
+The three dependencies have exact pins in package.json and a committed
+bun.lock; `bun install --frozen-lockfile` is what CI enforces. No npm, Zod,
+upgrade scripts, old schema versions or migration code. After changing the
+TypeBox definition, regenerate the committed IR with
+`bun run schema:export > dossier.schema.json`; `bun run schema:verify` (run in
+CI) fails the build on semantic drift, ignoring key ordering, which is not
+part of the schema's meaning.
 
 ## Autonomous agent execution
 
@@ -25,9 +28,11 @@ provides semantic constraints the JSON schema cannot encode.
 
 An independent semantic reviewer must be configured through
 `EVIDENCE_JUDGE_URL`, `EVIDENCE_JUDGE_MODEL`, and
-`EVIDENCE_JUDGE_API_KEY`. Source re-fetches require network egress
-protection against private hosts and DNS rebinding. Missing credentials,
-invalid receipts or unavailable source text make validation fail closed.
+`EVIDENCE_JUDGE_API_KEY`. Every fetched URL is DNS-resolved and refused if it
+resolves to private, loopback or link-local space, on every redirect hop, so a
+rebinding host cannot reach internal services; an egress firewall is still
+recommended as defence in depth. Missing credentials, invalid receipts or
+unavailable source text make validation fail closed.
 
 ```sh
 bun run receipt:capture 'https://example.org/source' 'Exact quote from the source'
