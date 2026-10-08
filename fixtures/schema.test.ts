@@ -9,7 +9,7 @@ test('committed strict IR matches native TypeBox JSON Schema',async()=>{
   const ir=JSON.parse(await readFile('dossier.schema.json','utf8'));
   expect(JSON.stringify(canon(ir))).toBe(JSON.stringify(canon(JSON.parse(JSON.stringify(DossierSchema)))));
 });
-test('evidence carries a URL for the consumer to check, not a receipt id',async()=>{
+test('evidence carries a URL for the consumer to check',async()=>{
   const ir=JSON.parse(await readFile('dossier.schema.json','utf8'));
   const ev=ir.properties.evidence.items;
   expect(ev.required).toContain('url');
