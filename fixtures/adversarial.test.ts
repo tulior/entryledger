@@ -4,7 +4,7 @@
  * fail closed: a dossier that cannot be trusted must never validate.
  */
 import {test,expect} from 'bun:test';
-import {validateDossier,type EvidenceVerifier,type Dossier} from '../contract.ts';
+import {validateDossier,type ReceiptVerifier,type Dossier} from '../contract.ts';
 import {renderArtifacts} from '../render.ts';
 import {
   assertPublicUrl,isPrivateAddress,assertPublicUrlResolved,captureReceipt
@@ -131,7 +131,7 @@ test('a fabricated receipt cannot authenticate an invented quotation',async()=>{
     await writeFile(join(dir,id+'.json'),JSON.stringify({
       url,fetchedAt:new Date().toISOString(),rawTextHash:sha256(body),rawText:body}));
     const verifier=createReceiptVerifier({
-      receiptsDir:dir,judge:async()=>({ok:true,reason:'approves everything'}),
+      receiptsDir:dir,
       fetchPage:async u=>({url:u,title:'T',rawText:live})});
     const source={id:'s',url,title:'T',authors:[],publisher:'P',kind:'primary',
       accessed:'2026-10-08T00:00:00Z',quality:{assessment:'high',rationale:'x',
@@ -157,7 +157,6 @@ test('a tampered receipt body is rejected even when the quote still matches',asy
     rec.rawText=rec.rawText+' TAMPERED';
     await writeFile(path,JSON.stringify(rec));
     const verifier=createReceiptVerifier({receiptsDir:dir,
-      judge:async()=>({ok:true,reason:'approves everything'}),
       fetchPage:async u=>({url:u,title:'T',rawText:quote+' more'})});
     const source={id:'s',url,title:'T',authors:[],publisher:'P',kind:'primary',
       accessed:'2026-10-08T00:00:00Z',quality:{assessment:'high',rationale:'x',
@@ -169,16 +168,14 @@ test('a tampered receipt body is rejected even when the quote still matches',asy
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 
-test('a permissive reviewer cannot make a contradicted claim verified',async()=>{
-  // The contract itself must refuse, independent of any external judge.
+test('an always-true verifier cannot make a contradicted claim verified',async()=>{
+  // Structural rules must hold even when receipt verification rubber-stamps
+  // everything, so no verifier can launder a contradiction into a pass.
   const d=clone();
   d.evidence[4]!.stance='challenges';
   d.evidence[4]!.challengesClaimIds=['identity'];
-  const permissive:EvidenceVerifier={
-    async verify(){return true},
-    async reviewSource(){return true},
-    async reviewStatement(){return true}};
-  const r=await validateDossier(d,permissive,{allowSyntheticFixture:true});
+  const alwaysTrue:ReceiptVerifier={async verify(){return true}};
+  const r=await validateDossier(d,alwaysTrue,{allowSyntheticFixture:true});
   expect(r.ok).toBe(false);
 });
 

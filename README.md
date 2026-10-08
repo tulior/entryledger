@@ -26,13 +26,13 @@ It researches the subject, captures source receipts, writes
 `dossier.schema.json` is the committed direct-JSON IR; `contract.ts`
 provides semantic constraints the JSON schema cannot encode.
 
-An independent semantic reviewer must be configured through
-`EVIDENCE_JUDGE_URL`, `EVIDENCE_JUDGE_MODEL`, and
-`EVIDENCE_JUDGE_API_KEY`. Every fetched URL is DNS-resolved and refused if it
-resolves to private, loopback or link-local space, on every redirect hop, so a
-rebinding host cannot reach internal services; an egress firewall is still
-recommended as defence in depth. Missing credentials, invalid receipts or
-unavailable source text make validation fail closed.
+There is no external LLM judge. The researching agent reads the sources and
+judges entailment itself; the machine layer only authenticates quotations.
+Every cited quote must be present on the live source page and match its stored
+receipt, or validation fails closed. Every fetched URL is DNS-resolved and
+refused if it resolves to private, loopback or link-local space, on every
+redirect hop, so a rebinding host cannot reach internal services; an egress
+firewall is still recommended as defence in depth.
 
 ```sh
 bun run receipt:capture 'https://example.org/source' 'Exact quote from the source'
@@ -48,13 +48,14 @@ schema-contract invariants; synthetic test evidence is never publishable.
 ## One LLM-to-IR contract
 \`\`\`ts
 import {DossierSchema,DossierStandardSchema,validateDossier} from './contract.ts';
+import {createReceiptVerifier} from './verifier/fetch.ts';
 import {renderArtifacts} from './render.ts';
 
 // DossierSchema IS native JSON Schema 2020-12, not a transformed export.
 const raw:unknown=await provider.generate({jsonSchema:DossierSchema});
 const structural=await DossierStandardSchema['~standard'].validate(raw);
 if('issues' in structural)throw Error('Invalid IR');
-const reviewed=await validateDossier(raw,independentEvidenceVerifier);
+const reviewed=await validateDossier(raw,createReceiptVerifier());
 if(!reviewed.ok)throw Error(JSON.stringify(reviewed.errors));
 const [proposedTitle,editorialBrief]=renderArtifacts(reviewed);
 \`\`\`
@@ -64,12 +65,18 @@ schema or translation layer. It doesn't modify generated JSON or the
 native JSON Schema.
 
 ## Publication gate
-TypeBox validates shape, not truth. validateDossier verifies cross-references,
-independent authenticated source receipts and claim support, source quality,
-disputes and contradictions, real calendar validity, coverage, notability
-and mandatory warnings. Its verifier is an injected trusted service external
-to the researching AI. Invalid, unsupported and contradictory dossiers fail closed.
-The synthetic test fixture is blocked by default.
+TypeBox validates shape, not truth. `validateDossier` verifies cross-references,
+authenticated source receipts, support and corroboration structure, source
+quality, disputes and contradictions, real calendar validity, coverage,
+notability and mandatory warnings. Invalid, unsupported and contradictory
+dossiers fail closed, and the synthetic test fixture is blocked by default.
+
+The machine authenticates *quotations*; the agent is responsible for what they
+*mean*. `verify` proves a quote occurred on the page it is attributed to — it
+does not and cannot establish that the quote entails the claim. Cross-reference,
+stance, corroboration and contradiction rules are structural, so they still
+reject a false dossier no matter what the agent asserts. But a well-quoted
+misreading passes, and that judgement is the agent's to get right.
 
 The renderer produces exactly two plaintext artifacts. The brief has a strict
 5,000-character limit, retaining critical claims, citations, qualifications,

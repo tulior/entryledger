@@ -5,13 +5,12 @@ import {join} from 'node:path';
 import {captureReceipt,createReceiptVerifier,sha256} from './fetch.ts';
 import type {SourceRecord,EvidenceRecord} from '../contract.ts';
 
-test('receipt capture, live re-fetch, source review, and semantic review',async()=>{
+test('receipt capture and live re-fetch authenticate quotations',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'entryledger-'));
   const url='https://example.org/test-article';
   const quote='Kestrel Atlas is a fictional test project.';
   const page={url,title:'Test document',rawText:quote+' Extra source context.'};
   const fetchPage=async()=>page;
-  const judge=async()=>({ok:true,reason:'Synthetic offline test oracle only'});
   try{
     const {id,receipt}=await captureReceipt(url,quote,{receiptsDir:dir,fetchPage});
     expect(receipt.rawTextHash).toBe(sha256(page.rawText));
@@ -26,10 +25,8 @@ test('receipt capture, live re-fetch, source review, and semantic review',async(
     const evidence:EvidenceRecord={id:'evidence1',sourceId:'source1',
       receiptId:id,quote,locator:'test excerpt',stance:'supports',
       challengesClaimIds:[],observedAt:'2026-10-08T00:00:00Z'};
-    const verifier=createReceiptVerifier({receiptsDir:dir,fetchPage,judge});
-    expect(await verifier.reviewSource(source)).toBe(true);
+    const verifier=createReceiptVerifier({receiptsDir:dir,fetchPage});
     expect(await verifier.verify(source,evidence)).toBe(true);
-    expect(await verifier.reviewStatement('A fictional project.','attributed',[evidence])).toBe(true);
     expect(await verifier.verify(source,{...evidence,quote:'Invented false evidence quoted nowhere'})).toBe(false);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
