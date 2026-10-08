@@ -2220,5 +2220,7 @@
     "presentation"
   ],
   "additionalProperties": false,
-  "$schema": "https://json-schema.org/draft/2020-12/schema"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/tulior/entryledger/main/dossier.schema.json",
+  "x-entryledger-ir-revision": "2026-10-08"
 }
