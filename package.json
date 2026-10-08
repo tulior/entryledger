@@ -5,7 +5,10 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "bun test",
-    "schema:export": "bun scripts/export-schema.ts"
+    "schema:export": "bun scripts/export-schema.ts",
+    "dossier:check": "bun scripts/check-dossier.ts",
+    "dossier:render": "bun scripts/render-dossier.ts",
+    "receipt:capture": "bun scripts/capture-receipt.ts"
   },
   "dependencies": {
     "typebox": "1.3.36"
