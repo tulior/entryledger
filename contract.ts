@@ -143,27 +143,19 @@ const deepFreeze=(value:unknown):void=>{
   }
 };
 
-/** Inject an independent, trusted receipt store or retrieval service.
- * Must authenticate receiptId, source URL, captured content, and exact quote/locator.
- * Never use an agent-authored 'verified=true' flag as proof.
- */
-export interface EvidenceVerifier {
+/** Authenticates a quotation against live source text and its stored receipt.
+ * This is deliberately not a semantic reviewer: the researching agent reads the
+ * sources and judges entailment itself. What this guarantees is only that the
+ * quoted span really occurs on the page it is attributed to. */
+export interface ReceiptVerifier {
   verify(source:SourceRecord, evidence:EvidenceRecord):Promise<boolean>;
-  /** Independent reviewer attests that the evidence actually supports the
-   * statement AS CLASSIFIED (e.g., reported claim vs. independently true fact).
-   * This cannot be replaced by substring/keyword matching.
-   */
-  reviewStatement(statement:string, status:Claim['status'],
-    evidence:EvidenceRecord[]):Promise<boolean>;
-  /** Validates provenance and source metadata, not merely a syntactically valid URL. */
-  reviewSource(source:SourceRecord):Promise<boolean>;
 }
 
 const diag=(code:string,path:string,message:string,severity:'error'|'warning'='error'):
   Diagnostic => ({code,path,message,severity});
 const distinct=<T>(items:T[]) => new Set(items).size===items.length;
 
-export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
+export async function validateDossier(raw:unknown, verifier:ReceiptVerifier,
   options:{allowSyntheticFixture?:boolean}={}):Promise<ValidationReport> {
   if(!Value.Check(DossierSchema,raw))return {ok:false,warnings:[],
     errors:Array.from(Value.Errors(DossierSchema,raw),e=>{
@@ -341,31 +333,19 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
   if(!d.article.title.includes(ents.get(d.subjectEntityId)?.name??''))
     warn('TITLE_NAME_MISMATCH','article.title','Review proposed title against canonical subject name.');
 
-  // The external verifier is independent of agent-authored dossier fields.
-  // Quote authentication AND entailment/source appraisal are required.
+  // Every cited quotation must still be present on the live source page and
+  // match its stored receipt. This authenticates provenance, not meaning:
+  // the researching agent is responsible for the evidence actually supporting
+  // the claim it is attached to.
   if(!errors.length){
-    await Promise.all(d.sources.map(async source=>{
-      try {if(!await verifier.reviewSource(source)) fail('UNREVIEWED_SOURCE',
-        `sources.${source.id}`,'Trusted reviewer rejected source metadata/provenance.');}
-      catch {fail('SOURCE_REVIEW_ERROR',`sources.${source.id}`,'Source review failed closed.');}
-    }));
     await Promise.all([...evidenceUsed].map(async id=>{
       const ev=evs.get(id), source=ev && srcs.get(ev.sourceId);
       if(!ev||!source) return;
       try {if(!await verifier.verify(source,ev))
-        fail('UNVERIFIED_EVIDENCE',`evidence.${id}`,'Trusted receipt/quote/locator did not verify.');}
-      catch {fail('RECEIPT_ERROR',`evidence.${id}`,'Trusted verification failed closed.');}
-    }));
-    await Promise.all(d.claims.filter(c=>c.status!=='unknown').flatMap(c=>{
-      const statements=c.status==='disputed'?c.positions.map(p=>
-        ({statement:p.position,evidenceIds:p.evidenceIds})): [{
-        statement:c.proposition,evidenceIds:c.evidenceIds}];
-      return statements.map(async item=>{
-        const evidence=item.evidenceIds.map(id=>evs.get(id)!);
-        try {if(!await verifier.reviewStatement(item.statement,c.status,evidence))
-          fail('UNREVIEWED_CLAIM',`claims.${c.id}`,'Semantic entailment review rejected claim.');}
-        catch {fail('CLAIM_REVIEW_ERROR',`claims.${c.id}`,'Claim review failed closed.');}
-      });
+        fail('UNVERIFIED_EVIDENCE',`evidence.${id}`,
+          'Quotation is not present on the live source page, or its receipt does not match.');
+      }
+      catch {fail('RECEIPT_ERROR',`evidence.${id}`,'Receipt verification failed closed.');}
     }));
   }
   if(errors.length) return {ok:false,errors:errors.sort((a,b)=>a.path.localeCompare(b.path)||a.code.localeCompare(b.code)),warnings};

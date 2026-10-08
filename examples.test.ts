@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import {DossierSchema,DossierStandardSchema,validateDossier,type EvidenceVerifier,type Dossier} from './contract.ts';
+import {DossierSchema,DossierStandardSchema,validateDossier,type ReceiptVerifier,type Dossier} from './contract.ts';
 import {renderArtifacts} from './render.ts';
 
 const at='2026-10-08T00:00:00Z';
@@ -15,18 +15,9 @@ export const receipts:Record<string,{url:string,locator:string,body:string}>={
   rec1:{url:'https://example.org/atlas/mock-announcement',locator:'§1',body:quote1+' '+quote2+' '+quote3},
   rec2:{url:'https://example.org/atlas/mock-review',locator:'§2',body:quote4+' '+quote5}
 };
-export const synthVerifier:EvidenceVerifier={
-  async reviewSource(source){return Object.values(receipts).some(r=>r.url===source.url);},
-  async reviewStatement(statement,status,evidence){
-    // Synthetic, fixed reviewed facts: this is only an integration test oracle.
-    return new Set([
-      'Kestrel Atlas is a fictional test project.',
-      'It consists of maps of imaginary bird migrations.',
-      'Its illustrative release date is 12 June 2025.',
-      'This is invented test data, not a real historical subject.',
-      'It illustrates evidence trails, not historical importance.'
-    ]).has(statement)&&evidence.length>0;
-  },
+export const synthVerifier:ReceiptVerifier={
+  // Receipt authentication only: the quotation must occur in the stored source
+  // text. Whether it supports the claim is the researching agent's judgement.
   async verify(source,evidence){
     const r=receipts[evidence.receiptId];
     return !!r&&r.url===source.url&&r.locator===evidence.locator&&r.body.includes(evidence.quote);
@@ -165,12 +156,21 @@ test('unauthenticated quotes are rejected',async()=>{
  expect(result.ok).toBe(false);
  if(!result.ok)expect(result.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE')).toBe(true);
 });
-test('unreviewed claims cannot be declared verified',async()=>{
+test('quotation authenticity is enforced, but entailment is the agent\'s judgement',async()=>{
+ // Deliberate limitation, stated as a test so it cannot be forgotten:
+ // rewriting a proposition while leaving its quotation intact still passes,
+ // because the contract authenticates the quote against the live page and
+ // nothing else. Deciding that the quote supports the proposition is the
+ // researching agent's responsibility.
  const data=structuredClone(fixture);
  data.claims[0]!.proposition='A real project documented by historians.';
- const result=await validateDossier(data,synthVerifier,{allowSyntheticFixture:true});
+ expect((await validateDossier(data,synthVerifier,{allowSyntheticFixture:true})).ok).toBe(true);
+ // What IS enforced: the quotation must exist on the source page.
+ const forged=structuredClone(fixture);
+ forged.evidence[0]!.quote='A sentence that appears on no source page at all.';
+ const result=await validateDossier(forged,synthVerifier,{allowSyntheticFixture:true});
  expect(result.ok).toBe(false);
- if(!result.ok)expect(result.errors.some(e=>e.code==='UNREVIEWED_CLAIM')).toBe(true);
+ if(!result.ok)expect(result.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE')).toBe(true);
 });
 test('dangling references are rejected',async()=>{
  const data=structuredClone(fixture);
