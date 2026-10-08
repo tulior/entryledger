@@ -1,0 +1,268 @@
+{
+  "origin": "synthetic_fixture",
+  "subjectEntityId": "atlas",
+  "article": {
+    "title": "Kestrel Atlas (fictional test fixture)",
+    "alternatives": [],
+    "scope": "standalone_candidate",
+    "scopeClaimIds": [
+      "identity"
+    ],
+    "disambiguationClaimIds": []
+  },
+  "entities": [
+    {
+      "id": "atlas",
+      "kind": "work",
+      "name": "Kestrel Atlas",
+      "aliases": []
+    }
+  ],
+  "sources": [
+    {
+      "id": "project",
+      "url": "https://example.org/entryledger-kestrel-test",
+      "title": "Synthetic dossier test source",
+      "authors": [
+        "Synthetic fixture author"
+      ],
+      "publisher": "Fictional project",
+      "kind": "primary",
+      "published": {
+        "precision": "day",
+        "value": "2025-01-01"
+      },
+      "accessed": "2026-10-08T00:00:00Z",
+      "quality": {
+        "assessment": "low",
+        "rationale": "Synthetic test-only document",
+        "independenceRationale": "Not independent",
+        "editorialOversight": false,
+        "coverage": "passing",
+        "limitations": [
+          "Not a real source"
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev1",
+      "sourceId": "project",
+      "receiptId": "r000000000000000000000000",
+      "quote": "Kestrel Atlas is a fictional encyclopedia fixture.",
+      "locator": "paragraph 1",
+      "stance": "context",
+      "challengesClaimIds": [],
+      "observedAt": "2026-10-08T00:00:00Z"
+    },
+    {
+      "id": "ev2",
+      "sourceId": "project",
+      "receiptId": "r000000000000000000000001",
+      "quote": "This fictional example consists of imaginary migration maps.",
+      "locator": "paragraph 2",
+      "stance": "supports",
+      "challengesClaimIds": [],
+      "observedAt": "2026-10-08T00:00:00Z"
+    },
+    {
+      "id": "ev3",
+      "sourceId": "project",
+      "receiptId": "r000000000000000000000002",
+      "quote": "This material must not be presented as a real historical subject.",
+      "locator": "paragraph 3",
+      "stance": "supports",
+      "challengesClaimIds": [],
+      "observedAt": "2026-10-08T00:00:00Z"
+    },
+    {
+      "id": "orphan",
+      "sourceId": "project",
+      "receiptId": "r000000000000000000000001",
+      "quote": "This fictional example consists of imaginary migration maps.",
+      "locator": "paragraph 2",
+      "stance": "supports",
+      "challengesClaimIds": [],
+      "observedAt": "2026-10-08T00:00:00Z"
+    }
+  ],
+  "claims": [
+    {
+      "id": "identity",
+      "category": "identity",
+      "subjectEntityId": "atlas",
+      "predicate": "is",
+      "proposition": "Kestrel Atlas is a fictional encyclopedia fixture.",
+      "qualifiers": [],
+      "editorialRisk": "critical",
+      "status": "verified",
+      "evidenceIds": [
+        "ev1"
+      ],
+      "verification": "direct"
+    },
+    {
+      "id": "definition",
+      "category": "definition",
+      "subjectEntityId": "atlas",
+      "predicate": "consists_of",
+      "proposition": "The fixture contains imaginary migration maps.",
+      "qualifiers": [],
+      "editorialRisk": "high",
+      "status": "verified",
+      "evidenceIds": [
+        "ev2"
+      ],
+      "verification": "direct"
+    },
+    {
+      "id": "limitation",
+      "category": "limitations",
+      "subjectEntityId": "atlas",
+      "predicate": "not_real",
+      "proposition": "The subject is imaginary and cannot establish real-world notability.",
+      "qualifiers": [],
+      "editorialRisk": "critical",
+      "status": "verified",
+      "evidenceIds": [
+        "ev3"
+      ],
+      "verification": "direct"
+    }
+  ],
+  "researchActions": [
+    {
+      "id": "search1",
+      "question": "Is this independently notable?",
+      "method": "search",
+      "performedAt": "2026-10-08T00:00:00Z",
+      "outcome": "No real sources exist; synthetic only.",
+      "sourceIds": [],
+      "resolved": false
+    }
+  ],
+  "coverage": [
+    {
+      "category": "identity",
+      "state": "covered",
+      "reason": "Represented in fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "disambiguation",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "scope",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "definition",
+      "state": "covered",
+      "reason": "Represented in fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "chronology",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "people_organizations",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "relationships",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "characteristics",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "significance",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "reception",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "controversies",
+      "state": "not_applicable",
+      "reason": "Not represented in toy fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "limitations",
+      "state": "covered",
+      "reason": "Represented in fixture",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "editorial_cautions",
+      "state": "covered",
+      "reason": "Represented in fixture",
+      "attemptIds": [],
+      "blocking": false
+    }
+  ],
+  "editorialRules": [
+    {
+      "id": "warnfixture",
+      "severity": "critical",
+      "directive": "avoid",
+      "text": "Never treat this fictional fixture as a genuine encyclopedia topic.",
+      "groundedClaimIds": [
+        "limitation"
+      ]
+    }
+  ],
+  "notability": {
+    "assessment": "insufficient",
+    "rationale": "Synthetic sources cannot establish notability.",
+    "independentSourceIds": [],
+    "researchActionIds": [
+      "search1"
+    ]
+  },
+  "presentation": {
+    "requiredClaimIds": [
+      "identity",
+      "definition",
+      "limitation"
+    ],
+    "requiredRuleIds": [
+      "warnfixture"
+    ],
+    "weights": []
+  }
+}
