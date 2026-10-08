@@ -4,10 +4,5 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 
-# Agent-generated data and potentially sensitive source snapshots
+# Agent-generated output
 out/
-receipts/
-work/receipts.json
-work/verify.log
-work/*.out
-work/raw/
