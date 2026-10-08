@@ -9,7 +9,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun test
-      - run: bun run schema:export > /tmp/entryledger-dossier.schema.json
+      - name: Fail if committed dossier.schema.json drifts from the TypeBox export
+        run: bun run schema:verify
