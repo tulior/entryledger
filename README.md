@@ -31,10 +31,17 @@ bun run schema:verify  # committed IR matches the TypeBox definition
 ```
 
 ```sh
-bun run page:dump <url> [substring]   # the ONLY command that touches the network
-bun run dossier:check ./out/dossier.json
-bun run dossier:render ./out/dossier.json
+ARTICLE="Ferrari (car)" bun run subject      # the whole run, six explicit stages
+bun run page:dump <url> [substring]           # inspect one page by hand
+bun run dossier:check ./out/dossier.json      # offline
+bun run dossier:render ./out/dossier.json     # offline, atomic
+bun run network:check                         # live budget + SSRF checks
 ```
+
+`bun run subject` is the one entry point. It removes any stale
+`out/artifacts.json` before starting, prints what happened at each stage, and
+exits non-zero with an explanation if a stage cannot complete. A failed run
+never leaves an artifact behind for the consumer to trust.
 
 `page:dump` prints a page exactly as the pipeline extracts it — whitespace
 collapsed, entities decoded. **Copy quotations from this output, not from search
@@ -93,6 +100,26 @@ const [proposedTitle,editorialBrief]=renderArtifacts(checked);
 
 The Standard Schema v1 interface is a small validator bridge, not a translation
 layer. It does not modify generated JSON or the native JSON Schema.
+
+## Bounded cost
+
+A run fetches at most 40 requests, 8 MB and 180 seconds. Each page is capped
+at 2 MB and 15 seconds. Exceeding any ceiling raises `BudgetExceeded` and stops
+the run. Retrieval is the only stage that touches the network; validation and
+rendering are offline and deterministic.
+
+Every destination is resolved and refused if it lands in private, loopback or
+link-local space, on every redirect hop, so a rebinding host cannot reach
+internal services. An egress firewall remains worth having as defence in depth.
+
+## A representative run
+
+`examples/ferrari/` is a complete committed run for "Ferrari (car)": the
+research brief, the dossier, and the artifact it produces. It reproduces
+byte-identically. It is interesting because it is not clean — `ferrari.com`
+returns 403 to programmatic clients, so the run carries an unresolved coverage
+category, a critical caution about the unread primary source, and a
+`THIN_NOTABILITY_EVIDENCE` warning — and still renders.
 
 ## Known limits
 
