@@ -1,15 +1,29 @@
 {
   "type": "object",
+  "required": [
+    "origin",
+    "subjectEntityId",
+    "article",
+    "entities",
+    "sources",
+    "evidence",
+    "claims",
+    "researchActions",
+    "coverage",
+    "editorialRules",
+    "notability",
+    "presentation"
+  ],
   "properties": {
     "origin": {
       "anyOf": [
         {
-          "const": "research",
-          "type": "string"
+          "type": "string",
+          "const": "research"
         },
         {
-          "const": "synthetic_fixture",
-          "type": "string"
+          "type": "string",
+          "const": "synthetic_fixture"
         }
       ]
     },
@@ -21,6 +35,13 @@
     },
     "article": {
       "type": "object",
+      "required": [
+        "title",
+        "alternatives",
+        "scope",
+        "scopeClaimIds",
+        "disambiguationClaimIds"
+      ],
       "properties": {
         "title": {
           "type": "string",
@@ -39,16 +60,16 @@
         "scope": {
           "anyOf": [
             {
-              "const": "standalone_candidate",
-              "type": "string"
+              "type": "string",
+              "const": "standalone_candidate"
             },
             {
-              "const": "broader_section_candidate",
-              "type": "string"
+              "type": "string",
+              "const": "broader_section_candidate"
             },
             {
-              "const": "undecided",
-              "type": "string"
+              "type": "string",
+              "const": "undecided"
             }
           ]
         },
@@ -72,19 +93,18 @@
           }
         }
       },
-      "required": [
-        "title",
-        "alternatives",
-        "scope",
-        "scopeClaimIds",
-        "disambiguationClaimIds"
-      ],
       "additionalProperties": false
     },
     "entities": {
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "aliases"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -95,36 +115,36 @@
           "kind": {
             "anyOf": [
               {
-                "const": "person",
-                "type": "string"
+                "type": "string",
+                "const": "person"
               },
               {
-                "const": "organization",
-                "type": "string"
+                "type": "string",
+                "const": "organization"
               },
               {
-                "const": "place",
-                "type": "string"
+                "type": "string",
+                "const": "place"
               },
               {
-                "const": "work",
-                "type": "string"
+                "type": "string",
+                "const": "work"
               },
               {
-                "const": "event",
-                "type": "string"
+                "type": "string",
+                "const": "event"
               },
               {
-                "const": "concept",
-                "type": "string"
+                "type": "string",
+                "const": "concept"
               },
               {
-                "const": "artifact",
-                "type": "string"
+                "type": "string",
+                "const": "artifact"
               },
               {
-                "const": "other",
-                "type": "string"
+                "type": "string",
+                "const": "other"
               }
             ]
           },
@@ -142,12 +162,6 @@
             }
           }
         },
-        "required": [
-          "id",
-          "kind",
-          "name",
-          "aliases"
-        ],
         "additionalProperties": false
       },
       "minItems": 1
@@ -156,6 +170,16 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "id",
+          "url",
+          "title",
+          "authors",
+          "publisher",
+          "kind",
+          "accessed",
+          "quality"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -188,20 +212,20 @@
           "kind": {
             "anyOf": [
               {
-                "const": "primary",
-                "type": "string"
+                "type": "string",
+                "const": "primary"
               },
               {
-                "const": "independent_secondary",
-                "type": "string"
+                "type": "string",
+                "const": "independent_secondary"
               },
               {
-                "const": "affiliated_secondary",
-                "type": "string"
+                "type": "string",
+                "const": "affiliated_secondary"
               },
               {
-                "const": "tertiary",
-                "type": "string"
+                "type": "string",
+                "const": "tertiary"
               }
             ]
           },
@@ -209,56 +233,56 @@
             "anyOf": [
               {
                 "type": "object",
+                "required": [
+                  "precision",
+                  "value"
+                ],
                 "properties": {
                   "precision": {
-                    "const": "year",
-                    "type": "string"
+                    "type": "string",
+                    "const": "year"
                   },
                   "value": {
                     "type": "string",
                     "pattern": "^\\d{4}$"
                   }
                 },
-                "required": [
-                  "precision",
-                  "value"
-                ],
                 "additionalProperties": false
               },
               {
                 "type": "object",
+                "required": [
+                  "precision",
+                  "value"
+                ],
                 "properties": {
                   "precision": {
-                    "const": "month",
-                    "type": "string"
+                    "type": "string",
+                    "const": "month"
                   },
                   "value": {
                     "type": "string",
                     "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
                   }
                 },
-                "required": [
-                  "precision",
-                  "value"
-                ],
                 "additionalProperties": false
               },
               {
                 "type": "object",
+                "required": [
+                  "precision",
+                  "value"
+                ],
                 "properties": {
                   "precision": {
-                    "const": "day",
-                    "type": "string"
+                    "type": "string",
+                    "const": "day"
                   },
                   "value": {
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                   }
                 },
-                "required": [
-                  "precision",
-                  "value"
-                ],
                 "additionalProperties": false
               }
             ]
@@ -269,24 +293,32 @@
           },
           "quality": {
             "type": "object",
+            "required": [
+              "assessment",
+              "rationale",
+              "independenceRationale",
+              "editorialOversight",
+              "coverage",
+              "limitations"
+            ],
             "properties": {
               "assessment": {
                 "anyOf": [
                   {
-                    "const": "high",
-                    "type": "string"
+                    "type": "string",
+                    "const": "high"
                   },
                   {
-                    "const": "medium",
-                    "type": "string"
+                    "type": "string",
+                    "const": "medium"
                   },
                   {
-                    "const": "low",
-                    "type": "string"
+                    "type": "string",
+                    "const": "low"
                   },
                   {
-                    "const": "unassessed",
-                    "type": "string"
+                    "type": "string",
+                    "const": "unassessed"
                   }
                 ]
               },
@@ -306,16 +338,16 @@
               "coverage": {
                 "anyOf": [
                   {
-                    "const": "substantial",
-                    "type": "string"
+                    "type": "string",
+                    "const": "substantial"
                   },
                   {
-                    "const": "passing",
-                    "type": "string"
+                    "type": "string",
+                    "const": "passing"
                   },
                   {
-                    "const": "reference",
-                    "type": "string"
+                    "type": "string",
+                    "const": "reference"
                   }
                 ]
               },
@@ -328,27 +360,9 @@
                 }
               }
             },
-            "required": [
-              "assessment",
-              "rationale",
-              "independenceRationale",
-              "editorialOversight",
-              "coverage",
-              "limitations"
-            ],
             "additionalProperties": false
           }
         },
-        "required": [
-          "id",
-          "url",
-          "title",
-          "authors",
-          "publisher",
-          "kind",
-          "accessed",
-          "quality"
-        ],
         "additionalProperties": false
       }
     },
@@ -356,6 +370,16 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "id",
+          "sourceId",
+          "url",
+          "quote",
+          "locator",
+          "stance",
+          "challengesClaimIds",
+          "observedAt"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -369,11 +393,9 @@
             "maxLength": 64,
             "pattern": "^[a-z][a-z0-9_-]{1,63}$"
           },
-          "receiptId": {
+          "url": {
             "type": "string",
-            "minLength": 2,
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+            "pattern": "^https://\\S+$"
           },
           "quote": {
             "type": "string",
@@ -388,16 +410,16 @@
           "stance": {
             "anyOf": [
               {
-                "const": "supports",
-                "type": "string"
+                "type": "string",
+                "const": "supports"
               },
               {
-                "const": "challenges",
-                "type": "string"
+                "type": "string",
+                "const": "challenges"
               },
               {
-                "const": "context",
-                "type": "string"
+                "type": "string",
+                "const": "context"
               }
             ]
           },
@@ -415,16 +437,6 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
           }
         },
-        "required": [
-          "id",
-          "sourceId",
-          "receiptId",
-          "quote",
-          "locator",
-          "stance",
-          "challengesClaimIds",
-          "observedAt"
-        ],
         "additionalProperties": false
       }
     },
@@ -434,6 +446,18 @@
         "anyOf": [
           {
             "type": "object",
+            "required": [
+              "id",
+              "category",
+              "subjectEntityId",
+              "predicate",
+              "proposition",
+              "qualifiers",
+              "editorialRisk",
+              "status",
+              "evidenceIds",
+              "verification"
+            ],
             "properties": {
               "id": {
                 "type": "string",
@@ -444,56 +468,56 @@
               "category": {
                 "anyOf": [
                   {
-                    "const": "identity",
-                    "type": "string"
+                    "type": "string",
+                    "const": "identity"
                   },
                   {
-                    "const": "disambiguation",
-                    "type": "string"
+                    "type": "string",
+                    "const": "disambiguation"
                   },
                   {
-                    "const": "scope",
-                    "type": "string"
+                    "type": "string",
+                    "const": "scope"
                   },
                   {
-                    "const": "definition",
-                    "type": "string"
+                    "type": "string",
+                    "const": "definition"
                   },
                   {
-                    "const": "chronology",
-                    "type": "string"
+                    "type": "string",
+                    "const": "chronology"
                   },
                   {
-                    "const": "people_organizations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "people_organizations"
                   },
                   {
-                    "const": "relationships",
-                    "type": "string"
+                    "type": "string",
+                    "const": "relationships"
                   },
                   {
-                    "const": "characteristics",
-                    "type": "string"
+                    "type": "string",
+                    "const": "characteristics"
                   },
                   {
-                    "const": "significance",
-                    "type": "string"
+                    "type": "string",
+                    "const": "significance"
                   },
                   {
-                    "const": "reception",
-                    "type": "string"
+                    "type": "string",
+                    "const": "reception"
                   },
                   {
-                    "const": "controversies",
-                    "type": "string"
+                    "type": "string",
+                    "const": "controversies"
                   },
                   {
-                    "const": "limitations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "limitations"
                   },
                   {
-                    "const": "editorial_cautions",
-                    "type": "string"
+                    "type": "string",
+                    "const": "editorial_cautions"
                   }
                 ]
               },
@@ -517,10 +541,14 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "entity",
-                        "type": "string"
+                        "type": "string",
+                        "const": "entity"
                       },
                       "entityId": {
                         "type": "string",
@@ -529,18 +557,18 @@
                         "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "value"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "literal",
-                        "type": "string"
+                        "type": "string",
+                        "const": "literal"
                       },
                       "value": {
                         "type": "string",
@@ -553,10 +581,6 @@
                         "pattern": "\\S"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -565,56 +589,56 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "year",
-                        "type": "string"
+                        "type": "string",
+                        "const": "year"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "month",
-                        "type": "string"
+                        "type": "string",
+                        "const": "month"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "day",
-                        "type": "string"
+                        "type": "string",
+                        "const": "day"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -636,22 +660,22 @@
               "editorialRisk": {
                 "anyOf": [
                   {
-                    "const": "critical",
-                    "type": "string"
+                    "type": "string",
+                    "const": "critical"
                   },
                   {
-                    "const": "high",
-                    "type": "string"
+                    "type": "string",
+                    "const": "high"
                   },
                   {
-                    "const": "normal",
-                    "type": "string"
+                    "type": "string",
+                    "const": "normal"
                   }
                 ]
               },
               "status": {
-                "const": "verified",
-                "type": "string"
+                "type": "string",
+                "const": "verified"
               },
               "evidenceIds": {
                 "type": "array",
@@ -666,306 +690,20 @@
               "verification": {
                 "anyOf": [
                   {
-                    "const": "direct",
-                    "type": "string"
+                    "type": "string",
+                    "const": "direct"
                   },
                   {
-                    "const": "corroborated",
-                    "type": "string"
+                    "type": "string",
+                    "const": "corroborated"
                   }
                 ]
               }
             },
-            "required": [
-              "id",
-              "category",
-              "subjectEntityId",
-              "predicate",
-              "proposition",
-              "qualifiers",
-              "editorialRisk",
-              "status",
-              "evidenceIds",
-              "verification"
-            ],
             "additionalProperties": false
           },
           {
             "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 64,
-                "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-              },
-              "category": {
-                "anyOf": [
-                  {
-                    "const": "identity",
-                    "type": "string"
-                  },
-                  {
-                    "const": "disambiguation",
-                    "type": "string"
-                  },
-                  {
-                    "const": "scope",
-                    "type": "string"
-                  },
-                  {
-                    "const": "definition",
-                    "type": "string"
-                  },
-                  {
-                    "const": "chronology",
-                    "type": "string"
-                  },
-                  {
-                    "const": "people_organizations",
-                    "type": "string"
-                  },
-                  {
-                    "const": "relationships",
-                    "type": "string"
-                  },
-                  {
-                    "const": "characteristics",
-                    "type": "string"
-                  },
-                  {
-                    "const": "significance",
-                    "type": "string"
-                  },
-                  {
-                    "const": "reception",
-                    "type": "string"
-                  },
-                  {
-                    "const": "controversies",
-                    "type": "string"
-                  },
-                  {
-                    "const": "limitations",
-                    "type": "string"
-                  },
-                  {
-                    "const": "editorial_cautions",
-                    "type": "string"
-                  }
-                ]
-              },
-              "subjectEntityId": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 64,
-                "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-              },
-              "predicate": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": "\\S"
-              },
-              "proposition": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": "\\S"
-              },
-              "object": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "const": "entity",
-                        "type": "string"
-                      },
-                      "entityId": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 64,
-                        "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "const": "literal",
-                        "type": "string"
-                      },
-                      "value": {
-                        "type": "string",
-                        "minLength": 1,
-                        "pattern": "\\S"
-                      },
-                      "unit": {
-                        "type": "string",
-                        "minLength": 1,
-                        "pattern": "\\S"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              "eventDate": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "precision": {
-                        "const": "year",
-                        "type": "string"
-                      },
-                      "value": {
-                        "type": "string",
-                        "pattern": "^\\d{4}$"
-                      }
-                    },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "precision": {
-                        "const": "month",
-                        "type": "string"
-                      },
-                      "value": {
-                        "type": "string",
-                        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
-                      }
-                    },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "precision": {
-                        "const": "day",
-                        "type": "string"
-                      },
-                      "value": {
-                        "type": "string",
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                      }
-                    },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              "qualifiers": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "\\S"
-                }
-              },
-              "exclusiveGroupId": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 64,
-                "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-              },
-              "editorialRisk": {
-                "anyOf": [
-                  {
-                    "const": "critical",
-                    "type": "string"
-                  },
-                  {
-                    "const": "high",
-                    "type": "string"
-                  },
-                  {
-                    "const": "normal",
-                    "type": "string"
-                  }
-                ]
-              },
-              "status": {
-                "const": "attributed",
-                "type": "string"
-              },
-              "evidenceIds": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 2,
-                  "maxLength": 64,
-                  "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-                },
-                "minItems": 1
-              },
-              "attributedTo": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "const": "entity",
-                        "type": "string"
-                      },
-                      "entityId": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 64,
-                        "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "const": "source",
-                        "type": "string"
-                      },
-                      "sourceId": {
-                        "type": "string",
-                        "minLength": 2,
-                        "maxLength": 64,
-                        "pattern": "^[a-z][a-z0-9_-]{1,63}$"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "sourceId"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            },
             "required": [
               "id",
               "category",
@@ -978,10 +716,6 @@
               "evidenceIds",
               "attributedTo"
             ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
             "properties": {
               "id": {
                 "type": "string",
@@ -992,56 +726,56 @@
               "category": {
                 "anyOf": [
                   {
-                    "const": "identity",
-                    "type": "string"
+                    "type": "string",
+                    "const": "identity"
                   },
                   {
-                    "const": "disambiguation",
-                    "type": "string"
+                    "type": "string",
+                    "const": "disambiguation"
                   },
                   {
-                    "const": "scope",
-                    "type": "string"
+                    "type": "string",
+                    "const": "scope"
                   },
                   {
-                    "const": "definition",
-                    "type": "string"
+                    "type": "string",
+                    "const": "definition"
                   },
                   {
-                    "const": "chronology",
-                    "type": "string"
+                    "type": "string",
+                    "const": "chronology"
                   },
                   {
-                    "const": "people_organizations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "people_organizations"
                   },
                   {
-                    "const": "relationships",
-                    "type": "string"
+                    "type": "string",
+                    "const": "relationships"
                   },
                   {
-                    "const": "characteristics",
-                    "type": "string"
+                    "type": "string",
+                    "const": "characteristics"
                   },
                   {
-                    "const": "significance",
-                    "type": "string"
+                    "type": "string",
+                    "const": "significance"
                   },
                   {
-                    "const": "reception",
-                    "type": "string"
+                    "type": "string",
+                    "const": "reception"
                   },
                   {
-                    "const": "controversies",
-                    "type": "string"
+                    "type": "string",
+                    "const": "controversies"
                   },
                   {
-                    "const": "limitations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "limitations"
                   },
                   {
-                    "const": "editorial_cautions",
-                    "type": "string"
+                    "type": "string",
+                    "const": "editorial_cautions"
                   }
                 ]
               },
@@ -1065,10 +799,14 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "entity",
-                        "type": "string"
+                        "type": "string",
+                        "const": "entity"
                       },
                       "entityId": {
                         "type": "string",
@@ -1077,18 +815,18 @@
                         "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "value"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "literal",
-                        "type": "string"
+                        "type": "string",
+                        "const": "literal"
                       },
                       "value": {
                         "type": "string",
@@ -1101,10 +839,6 @@
                         "pattern": "\\S"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -1113,56 +847,56 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "year",
-                        "type": "string"
+                        "type": "string",
+                        "const": "year"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "month",
-                        "type": "string"
+                        "type": "string",
+                        "const": "month"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "day",
-                        "type": "string"
+                        "type": "string",
+                        "const": "day"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -1184,22 +918,22 @@
               "editorialRisk": {
                 "anyOf": [
                   {
-                    "const": "critical",
-                    "type": "string"
+                    "type": "string",
+                    "const": "critical"
                   },
                   {
-                    "const": "high",
-                    "type": "string"
+                    "type": "string",
+                    "const": "high"
                   },
                   {
-                    "const": "normal",
-                    "type": "string"
+                    "type": "string",
+                    "const": "normal"
                   }
                 ]
               },
               "status": {
-                "const": "interpretation",
-                "type": "string"
+                "type": "string",
+                "const": "attributed"
               },
               "evidenceIds": {
                 "type": "array",
@@ -1215,10 +949,14 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "entity",
-                        "type": "string"
+                        "type": "string",
+                        "const": "entity"
                       },
                       "entityId": {
                         "type": "string",
@@ -1227,18 +965,18 @@
                         "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "sourceId"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "source",
-                        "type": "string"
+                        "type": "string",
+                        "const": "source"
                       },
                       "sourceId": {
                         "type": "string",
@@ -1247,20 +985,15 @@
                         "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "sourceId"
-                    ],
                     "additionalProperties": false
                   }
                 ]
-              },
-              "uncertainty": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": "\\S"
               }
             },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
             "required": [
               "id",
               "category",
@@ -1274,10 +1007,6 @@
               "attributedTo",
               "uncertainty"
             ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
             "properties": {
               "id": {
                 "type": "string",
@@ -1288,56 +1017,56 @@
               "category": {
                 "anyOf": [
                   {
-                    "const": "identity",
-                    "type": "string"
+                    "type": "string",
+                    "const": "identity"
                   },
                   {
-                    "const": "disambiguation",
-                    "type": "string"
+                    "type": "string",
+                    "const": "disambiguation"
                   },
                   {
-                    "const": "scope",
-                    "type": "string"
+                    "type": "string",
+                    "const": "scope"
                   },
                   {
-                    "const": "definition",
-                    "type": "string"
+                    "type": "string",
+                    "const": "definition"
                   },
                   {
-                    "const": "chronology",
-                    "type": "string"
+                    "type": "string",
+                    "const": "chronology"
                   },
                   {
-                    "const": "people_organizations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "people_organizations"
                   },
                   {
-                    "const": "relationships",
-                    "type": "string"
+                    "type": "string",
+                    "const": "relationships"
                   },
                   {
-                    "const": "characteristics",
-                    "type": "string"
+                    "type": "string",
+                    "const": "characteristics"
                   },
                   {
-                    "const": "significance",
-                    "type": "string"
+                    "type": "string",
+                    "const": "significance"
                   },
                   {
-                    "const": "reception",
-                    "type": "string"
+                    "type": "string",
+                    "const": "reception"
                   },
                   {
-                    "const": "controversies",
-                    "type": "string"
+                    "type": "string",
+                    "const": "controversies"
                   },
                   {
-                    "const": "limitations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "limitations"
                   },
                   {
-                    "const": "editorial_cautions",
-                    "type": "string"
+                    "type": "string",
+                    "const": "editorial_cautions"
                   }
                 ]
               },
@@ -1361,10 +1090,14 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "entity",
-                        "type": "string"
+                        "type": "string",
+                        "const": "entity"
                       },
                       "entityId": {
                         "type": "string",
@@ -1373,18 +1106,18 @@
                         "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "value"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "literal",
-                        "type": "string"
+                        "type": "string",
+                        "const": "literal"
                       },
                       "value": {
                         "type": "string",
@@ -1397,10 +1130,6 @@
                         "pattern": "\\S"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -1409,56 +1138,56 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "year",
-                        "type": "string"
+                        "type": "string",
+                        "const": "year"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "month",
-                        "type": "string"
+                        "type": "string",
+                        "const": "month"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "day",
-                        "type": "string"
+                        "type": "string",
+                        "const": "day"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -1480,27 +1209,327 @@
               "editorialRisk": {
                 "anyOf": [
                   {
-                    "const": "critical",
-                    "type": "string"
+                    "type": "string",
+                    "const": "critical"
                   },
                   {
-                    "const": "high",
-                    "type": "string"
+                    "type": "string",
+                    "const": "high"
                   },
                   {
-                    "const": "normal",
-                    "type": "string"
+                    "type": "string",
+                    "const": "normal"
                   }
                 ]
               },
               "status": {
-                "const": "disputed",
-                "type": "string"
+                "type": "string",
+                "const": "interpretation"
+              },
+              "evidenceIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+                },
+                "minItems": 1
+              },
+              "attributedTo": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "entity"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "sourceId"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "source"
+                      },
+                      "sourceId": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "uncertainty": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "category",
+              "subjectEntityId",
+              "predicate",
+              "proposition",
+              "qualifiers",
+              "editorialRisk",
+              "status",
+              "positions",
+              "uncertainty"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+              },
+              "category": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "identity"
+                  },
+                  {
+                    "type": "string",
+                    "const": "disambiguation"
+                  },
+                  {
+                    "type": "string",
+                    "const": "scope"
+                  },
+                  {
+                    "type": "string",
+                    "const": "definition"
+                  },
+                  {
+                    "type": "string",
+                    "const": "chronology"
+                  },
+                  {
+                    "type": "string",
+                    "const": "people_organizations"
+                  },
+                  {
+                    "type": "string",
+                    "const": "relationships"
+                  },
+                  {
+                    "type": "string",
+                    "const": "characteristics"
+                  },
+                  {
+                    "type": "string",
+                    "const": "significance"
+                  },
+                  {
+                    "type": "string",
+                    "const": "reception"
+                  },
+                  {
+                    "type": "string",
+                    "const": "controversies"
+                  },
+                  {
+                    "type": "string",
+                    "const": "limitations"
+                  },
+                  {
+                    "type": "string",
+                    "const": "editorial_cautions"
+                  }
+                ]
+              },
+              "subjectEntityId": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+              },
+              "predicate": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "proposition": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "object": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "entity"
+                      },
+                      "entityId": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "value"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "literal"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      },
+                      "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "\\S"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "eventDate": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
+                    "properties": {
+                      "precision": {
+                        "type": "string",
+                        "const": "year"
+                      },
+                      "value": {
+                        "type": "string",
+                        "pattern": "^\\d{4}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
+                    "properties": {
+                      "precision": {
+                        "type": "string",
+                        "const": "month"
+                      },
+                      "value": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
+                    "properties": {
+                      "precision": {
+                        "type": "string",
+                        "const": "day"
+                      },
+                      "value": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "qualifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "exclusiveGroupId": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+              },
+              "editorialRisk": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "critical"
+                  },
+                  {
+                    "type": "string",
+                    "const": "high"
+                  },
+                  {
+                    "type": "string",
+                    "const": "normal"
+                  }
+                ]
+              },
+              "status": {
+                "type": "string",
+                "const": "disputed"
               },
               "positions": {
                 "type": "array",
                 "items": {
                   "type": "object",
+                  "required": [
+                    "position",
+                    "attributedTo",
+                    "evidenceIds"
+                  ],
                   "properties": {
                     "position": {
                       "type": "string",
@@ -1511,10 +1540,14 @@
                       "anyOf": [
                         {
                           "type": "object",
+                          "required": [
+                            "type",
+                            "entityId"
+                          ],
                           "properties": {
                             "type": {
-                              "const": "entity",
-                              "type": "string"
+                              "type": "string",
+                              "const": "entity"
                             },
                             "entityId": {
                               "type": "string",
@@ -1523,18 +1556,18 @@
                               "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                             }
                           },
-                          "required": [
-                            "type",
-                            "entityId"
-                          ],
                           "additionalProperties": false
                         },
                         {
                           "type": "object",
+                          "required": [
+                            "type",
+                            "sourceId"
+                          ],
                           "properties": {
                             "type": {
-                              "const": "source",
-                              "type": "string"
+                              "type": "string",
+                              "const": "source"
                             },
                             "sourceId": {
                               "type": "string",
@@ -1543,10 +1576,6 @@
                               "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                             }
                           },
-                          "required": [
-                            "type",
-                            "sourceId"
-                          ],
                           "additionalProperties": false
                         }
                       ]
@@ -1562,11 +1591,6 @@
                       "minItems": 1
                     }
                   },
-                  "required": [
-                    "position",
-                    "attributedTo",
-                    "evidenceIds"
-                  ],
                   "additionalProperties": false
                 },
                 "minItems": 2
@@ -1577,6 +1601,10 @@
                 "pattern": "\\S"
               }
             },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
             "required": [
               "id",
               "category",
@@ -1586,13 +1614,10 @@
               "qualifiers",
               "editorialRisk",
               "status",
-              "positions",
+              "question",
+              "attemptIds",
               "uncertainty"
             ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
             "properties": {
               "id": {
                 "type": "string",
@@ -1603,56 +1628,56 @@
               "category": {
                 "anyOf": [
                   {
-                    "const": "identity",
-                    "type": "string"
+                    "type": "string",
+                    "const": "identity"
                   },
                   {
-                    "const": "disambiguation",
-                    "type": "string"
+                    "type": "string",
+                    "const": "disambiguation"
                   },
                   {
-                    "const": "scope",
-                    "type": "string"
+                    "type": "string",
+                    "const": "scope"
                   },
                   {
-                    "const": "definition",
-                    "type": "string"
+                    "type": "string",
+                    "const": "definition"
                   },
                   {
-                    "const": "chronology",
-                    "type": "string"
+                    "type": "string",
+                    "const": "chronology"
                   },
                   {
-                    "const": "people_organizations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "people_organizations"
                   },
                   {
-                    "const": "relationships",
-                    "type": "string"
+                    "type": "string",
+                    "const": "relationships"
                   },
                   {
-                    "const": "characteristics",
-                    "type": "string"
+                    "type": "string",
+                    "const": "characteristics"
                   },
                   {
-                    "const": "significance",
-                    "type": "string"
+                    "type": "string",
+                    "const": "significance"
                   },
                   {
-                    "const": "reception",
-                    "type": "string"
+                    "type": "string",
+                    "const": "reception"
                   },
                   {
-                    "const": "controversies",
-                    "type": "string"
+                    "type": "string",
+                    "const": "controversies"
                   },
                   {
-                    "const": "limitations",
-                    "type": "string"
+                    "type": "string",
+                    "const": "limitations"
                   },
                   {
-                    "const": "editorial_cautions",
-                    "type": "string"
+                    "type": "string",
+                    "const": "editorial_cautions"
                   }
                 ]
               },
@@ -1676,10 +1701,14 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "entityId"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "entity",
-                        "type": "string"
+                        "type": "string",
+                        "const": "entity"
                       },
                       "entityId": {
                         "type": "string",
@@ -1688,18 +1717,18 @@
                         "pattern": "^[a-z][a-z0-9_-]{1,63}$"
                       }
                     },
-                    "required": [
-                      "type",
-                      "entityId"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "type",
+                      "value"
+                    ],
                     "properties": {
                       "type": {
-                        "const": "literal",
-                        "type": "string"
+                        "type": "string",
+                        "const": "literal"
                       },
                       "value": {
                         "type": "string",
@@ -1712,10 +1741,6 @@
                         "pattern": "\\S"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -1724,56 +1749,56 @@
                 "anyOf": [
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "year",
-                        "type": "string"
+                        "type": "string",
+                        "const": "year"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "month",
-                        "type": "string"
+                        "type": "string",
+                        "const": "month"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   },
                   {
                     "type": "object",
+                    "required": [
+                      "precision",
+                      "value"
+                    ],
                     "properties": {
                       "precision": {
-                        "const": "day",
-                        "type": "string"
+                        "type": "string",
+                        "const": "day"
                       },
                       "value": {
                         "type": "string",
                         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                       }
                     },
-                    "required": [
-                      "precision",
-                      "value"
-                    ],
                     "additionalProperties": false
                   }
                 ]
@@ -1795,22 +1820,22 @@
               "editorialRisk": {
                 "anyOf": [
                   {
-                    "const": "critical",
-                    "type": "string"
+                    "type": "string",
+                    "const": "critical"
                   },
                   {
-                    "const": "high",
-                    "type": "string"
+                    "type": "string",
+                    "const": "high"
                   },
                   {
-                    "const": "normal",
-                    "type": "string"
+                    "type": "string",
+                    "const": "normal"
                   }
                 ]
               },
               "status": {
-                "const": "unknown",
-                "type": "string"
+                "type": "string",
+                "const": "unknown"
               },
               "question": {
                 "type": "string",
@@ -1833,19 +1858,6 @@
                 "pattern": "\\S"
               }
             },
-            "required": [
-              "id",
-              "category",
-              "subjectEntityId",
-              "predicate",
-              "proposition",
-              "qualifiers",
-              "editorialRisk",
-              "status",
-              "question",
-              "attemptIds",
-              "uncertainty"
-            ],
             "additionalProperties": false
           }
         ]
@@ -1856,6 +1868,15 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "id",
+          "question",
+          "method",
+          "performedAt",
+          "outcome",
+          "sourceIds",
+          "resolved"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -1871,20 +1892,20 @@
           "method": {
             "anyOf": [
               {
-                "const": "search",
-                "type": "string"
+                "type": "string",
+                "const": "search"
               },
               {
-                "const": "document_review",
-                "type": "string"
+                "type": "string",
+                "const": "document_review"
               },
               {
-                "const": "expert_contact",
-                "type": "string"
+                "type": "string",
+                "const": "expert_contact"
               },
               {
-                "const": "other",
-                "type": "string"
+                "type": "string",
+                "const": "other"
               }
             ]
           },
@@ -1910,15 +1931,6 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "id",
-          "question",
-          "method",
-          "performedAt",
-          "outcome",
-          "sourceIds",
-          "resolved"
-        ],
         "additionalProperties": false
       }
     },
@@ -1926,76 +1938,83 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "category",
+          "state",
+          "reason",
+          "attemptIds",
+          "blocking"
+        ],
         "properties": {
           "category": {
             "anyOf": [
               {
-                "const": "identity",
-                "type": "string"
+                "type": "string",
+                "const": "identity"
               },
               {
-                "const": "disambiguation",
-                "type": "string"
+                "type": "string",
+                "const": "disambiguation"
               },
               {
-                "const": "scope",
-                "type": "string"
+                "type": "string",
+                "const": "scope"
               },
               {
-                "const": "definition",
-                "type": "string"
+                "type": "string",
+                "const": "definition"
               },
               {
-                "const": "chronology",
-                "type": "string"
+                "type": "string",
+                "const": "chronology"
               },
               {
-                "const": "people_organizations",
-                "type": "string"
+                "type": "string",
+                "const": "people_organizations"
               },
               {
-                "const": "relationships",
-                "type": "string"
+                "type": "string",
+                "const": "relationships"
               },
               {
-                "const": "characteristics",
-                "type": "string"
+                "type": "string",
+                "const": "characteristics"
               },
               {
-                "const": "significance",
-                "type": "string"
+                "type": "string",
+                "const": "significance"
               },
               {
-                "const": "reception",
-                "type": "string"
+                "type": "string",
+                "const": "reception"
               },
               {
-                "const": "controversies",
-                "type": "string"
+                "type": "string",
+                "const": "controversies"
               },
               {
-                "const": "limitations",
-                "type": "string"
+                "type": "string",
+                "const": "limitations"
               },
               {
-                "const": "editorial_cautions",
-                "type": "string"
+                "type": "string",
+                "const": "editorial_cautions"
               }
             ]
           },
           "state": {
             "anyOf": [
               {
-                "const": "covered",
-                "type": "string"
+                "type": "string",
+                "const": "covered"
               },
               {
-                "const": "not_applicable",
-                "type": "string"
+                "type": "string",
+                "const": "not_applicable"
               },
               {
-                "const": "unresolved",
-                "type": "string"
+                "type": "string",
+                "const": "unresolved"
               }
             ]
           },
@@ -2017,13 +2036,6 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "category",
-          "state",
-          "reason",
-          "attemptIds",
-          "blocking"
-        ],
         "additionalProperties": false
       }
     },
@@ -2031,6 +2043,13 @@
       "type": "array",
       "items": {
         "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "directive",
+          "text",
+          "groundedClaimIds"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -2041,36 +2060,36 @@
           "severity": {
             "anyOf": [
               {
-                "const": "critical",
-                "type": "string"
+                "type": "string",
+                "const": "critical"
               },
               {
-                "const": "high",
-                "type": "string"
+                "type": "string",
+                "const": "high"
               },
               {
-                "const": "normal",
-                "type": "string"
+                "type": "string",
+                "const": "normal"
               }
             ]
           },
           "directive": {
             "anyOf": [
               {
-                "const": "avoid",
-                "type": "string"
+                "type": "string",
+                "const": "avoid"
               },
               {
-                "const": "require",
-                "type": "string"
+                "type": "string",
+                "const": "require"
               },
               {
-                "const": "qualify",
-                "type": "string"
+                "type": "string",
+                "const": "qualify"
               },
               {
-                "const": "context",
-                "type": "string"
+                "type": "string",
+                "const": "context"
               }
             ]
           },
@@ -2090,32 +2109,31 @@
             "minItems": 1
           }
         },
-        "required": [
-          "id",
-          "severity",
-          "directive",
-          "text",
-          "groundedClaimIds"
-        ],
         "additionalProperties": false
       }
     },
     "notability": {
       "type": "object",
+      "required": [
+        "assessment",
+        "rationale",
+        "independentSourceIds",
+        "researchActionIds"
+      ],
       "properties": {
         "assessment": {
           "anyOf": [
             {
-              "const": "established",
-              "type": "string"
+              "type": "string",
+              "const": "established"
             },
             {
-              "const": "uncertain",
-              "type": "string"
+              "type": "string",
+              "const": "uncertain"
             },
             {
-              "const": "insufficient",
-              "type": "string"
+              "type": "string",
+              "const": "insufficient"
             }
           ]
         },
@@ -2143,16 +2161,15 @@
           }
         }
       },
-      "required": [
-        "assessment",
-        "rationale",
-        "independentSourceIds",
-        "researchActionIds"
-      ],
       "additionalProperties": false
     },
     "presentation": {
       "type": "object",
+      "required": [
+        "requiredClaimIds",
+        "requiredRuleIds",
+        "weights"
+      ],
       "properties": {
         "requiredClaimIds": {
           "type": "array",
@@ -2176,6 +2193,10 @@
           "type": "array",
           "items": {
             "type": "object",
+            "required": [
+              "claimId",
+              "utility"
+            ],
             "properties": {
               "claimId": {
                 "type": "string",
@@ -2189,38 +2210,15 @@
                 "maximum": 100
               }
             },
-            "required": [
-              "claimId",
-              "utility"
-            ],
             "additionalProperties": false
           }
         }
       },
-      "required": [
-        "requiredClaimIds",
-        "requiredRuleIds",
-        "weights"
-      ],
       "additionalProperties": false
     }
   },
-  "required": [
-    "origin",
-    "subjectEntityId",
-    "article",
-    "entities",
-    "sources",
-    "evidence",
-    "claims",
-    "researchActions",
-    "coverage",
-    "editorialRules",
-    "notability",
-    "presentation"
-  ],
-  "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/tulior/entryledger/main/dossier.schema.json",
-  "x-entryledger-ir-revision": "2026-10-08"
+  "x-entryledger-ir-revision": "2026-10-08",
+  "additionalProperties": false
 }

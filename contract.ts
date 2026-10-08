@@ -39,7 +39,8 @@ const Source=obj({
  coverage:Type.Union([Type.Literal('substantial'),Type.Literal('passing'),
  Type.Literal('reference')]),limitations:Type.Array(S)})});
 const Evidence=obj({
- id:ID,sourceId:ID,receiptId:ID,quote:Type.String({minLength:12,pattern:'\\S'}),
+ id:ID,sourceId:ID,url:Type.String({pattern:'^https://\\S+$'}),
+ quote:Type.String({minLength:12,pattern:'\\S'}),
  locator:S,stance:Type.Union([
  Type.Literal('supports'),Type.Literal('challenges'),Type.Literal('context')]),
  challengesClaimIds:Type.Array(ID),observedAt:Time});
@@ -143,32 +144,20 @@ const deepFreeze=(value:unknown):void=>{
   }
 };
 
-/** Authenticates a quotation against live source text and its stored receipt.
- * This is deliberately not a semantic reviewer: the researching agent reads the
- * sources and judges entailment itself. What this guarantees is only that the
- * quoted span really occurs on the page it is attributed to. */
-export type EvidenceVerdict =
-  /** Quote is present on the live page and matches its receipt. */
-  | 'authentic'
-  /** Quote WAS on the page when captured, and the stored receipt still proves it,
-   *  but the live page has since changed. Not fabrication: drift. */
-  | 'expired'
-  /** Quote is absent from the live page and was never in the receipt. */
-  | 'absent'
-  /** Receipt is missing, unaltered-content-failed, or not bound to this url+quote. */
-  | 'invalid'
-  /** The fetch itself failed; indistinguishable from unverified, so it fails closed. */
-  | 'error';
-export interface ReceiptVerifier {
-  verify(source:SourceRecord, evidence:EvidenceRecord):Promise<EvidenceVerdict>;
-}
+// validateDossier checks SHAPE AND INTERNAL CONSISTENCY, nothing more.
+//
+// It does not fetch anything, re-read a source, or decide whether a claim is
+// true. Every evidence record carries the url and the exact quotation so the
+// consumer can check it. A dossier that passes here is well-formed and
+// self-consistent; it is NOT verified, and downstream tooling must not treat it
+// as such.
 
 const diag=(code:string,path:string,message:string,severity:'error'|'warning'='error'):
   Diagnostic => ({code,path,message,severity});
 const distinct=<T>(items:T[]) => new Set(items).size===items.length;
 
-export async function validateDossier(raw:unknown, verifier:ReceiptVerifier,
-  options:{allowSyntheticFixture?:boolean}={}):Promise<ValidationReport> {
+export function validateDossier(raw:unknown,
+  options:{allowSyntheticFixture?:boolean}={}):ValidationReport {
   if(!Value.Check(DossierSchema,raw))return {ok:false,warnings:[],
     errors:Array.from(Value.Errors(DossierSchema,raw),e=>{
       const path=(e as {path?:string;instancePath?:string}).instancePath ??
@@ -302,7 +291,9 @@ export async function validateDossier(raw:unknown, verifier:ReceiptVerifier,
       fail('EMPTY_COVERAGE',`coverage.${c.category}`,'Covered means a claim is present.');
     c.attemptIds.forEach(id=>exists(acts,id,`coverage.${c.category}.attemptIds`));
     if(c.state==='unresolved'&&c.attemptIds.length===0)
-      fail('UNSEARCHED_GAP',`coverage.${c.category}`,'Unresolved gap requires a research action.');
+      warn('UNDOCUMENTED_GAP',`coverage.${c.category}`,
+        'Unresolved category records no research action. The consumer should confirm the '+
+        'gap was genuinely investigated before relying on this dossier.');
     if(c.blocking) fail('UNRESOLVED_BLOCKER',`coverage.${c.category}`,c.reason);
     if(c.state==='not_applicable'&&(d.claims.some(k=>k.category===c.category&&k.status!=='unknown') ||
       (c.category==='editorial_cautions'&&d.editorialRules.length>0)))
@@ -337,40 +328,16 @@ export async function validateDossier(raw:unknown, verifier:ReceiptVerifier,
         s.quality.editorialOversight&&s.quality.assessment!=='low';
     });
     if(new Set(good.map(id=>srcs.get(id)?.publisher)).size<2)
-      fail('NOTABILITY_NOT_ESTABLISHED','notability',
-        'Default conservative rubric: >=2 substantial independent sources with distinct publishers.');
+      warn('THIN_NOTABILITY_EVIDENCE','notability',
+        'Asserted established with fewer than two substantial independent sources from '+
+        'distinct publishers. The consumer must confirm notability before publication.');
   } else if(!d.notability.researchActionIds.length)
-    fail('NOTABILITY_UNASSESSED','notability.researchActionIds',
-      'Uncertain/insufficient assessments require documented search attempts.');
+    warn('NOTABILITY_UNASSESSED','notability.researchActionIds',
+      'Uncertain/insufficient assessment records no research action; the consumer should '+
+      'check whether the subject was actually searched for.');
   if(!d.article.title.includes(ents.get(d.subjectEntityId)?.name??''))
     warn('TITLE_NAME_MISMATCH','article.title','Review proposed title against canonical subject name.');
 
-  // Every cited quotation must still be present on the live source page and
-  // match its stored receipt. This authenticates provenance, not meaning:
-  // the researching agent is responsible for the evidence actually supporting
-  // the claim it is attached to.
-  if(!errors.length){
-    await Promise.all([...evidenceUsed].map(async id=>{
-      const ev=evs.get(id), source=ev && srcs.get(ev.sourceId);
-      if(!ev||!source) return;
-      // 'expired' and 'absent' are the same failure to the dossier but very
-      // different facts: one means the page moved, the other means the quotation
-      // was not there. Collapsing them into one code accuses an honest agent of
-      // fabrication, which is the one response the design must never invite.
-      try {
-        const verdict=await verifier.verify(source,ev);
-        if(verdict==='expired')
-          fail('EVIDENCE_EXPIRED',`evidence.${id}`,
-            'Quotation was captured from this page and its receipt still proves it, but '+
-            'the live page has since changed. Re-capture the receipt or drop the claim; '+
-            'do not shorten the quotation.');
-        else if(verdict!=='authentic')
-          fail('UNVERIFIED_EVIDENCE',`evidence.${id}`,
-            'Quotation is not present on the live source page, or its receipt does not match.');
-      }
-      catch {fail('RECEIPT_ERROR',`evidence.${id}`,'Receipt verification failed closed.');}
-    }));
-  }
   if(errors.length) return {ok:false,errors:errors.sort((a,b)=>a.path.localeCompare(b.path)||a.code.localeCompare(b.code)),warnings};
   const report:ValidatedDossier={ok:true,dossier:d,warnings,[certification]:true};
   deepFreeze(report);

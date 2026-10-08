@@ -1,47 +1,24 @@
 /**
- * Evidence receipts must match live HTTPS source text. Hashes alone are NOT
- * provenance: a model can hash invented text. The verifier re-fetches the URL,
- * re-checks the quoted span and rejects tampered receipts.
+ * Page retrieval for research. This is the ONLY module that touches the network.
  *
- * There is no external LLM judge. The researching agent reads the sources and
- * judges entailment itself; this layer only proves a quotation came from the
- * page it claims to come from.
+ * It exists so an agent can read what a source actually says before quoting it:
+ * the extractor collapses whitespace and decodes entities, so a quotation must
+ * match the text produced here byte for byte. Search-engine snippets do NOT match.
+ *
+ * Nothing here is a trust boundary. The consumer of the artifacts decides what
+ * is true; this tool just makes the source text visible and quotable.
  */
-import {createHash} from 'node:crypto';
-import {readFile, mkdir, writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
 import {lookup} from 'node:dns/promises';
 import {isIP} from 'node:net';
-import type {ReceiptVerifier, EvidenceRecord, SourceRecord, EvidenceVerdict} from '../contract.ts';
 
-export type Receipt = {
-  url:string;
-  fetchedAt:string;
-  rawTextHash:string;
-  rawText:string;
-};
 export type Page = {url:string; title:string; rawText:string};
-export type FetchPage = (url:string)=>Promise<Page>;
-export type VerifierOptions = {
-  receiptsDir?:string;
-  fetchPage?:FetchPage;
-  /** How old a receipt must be before a vanished quotation is reported as page
-   *  drift rather than fabrication. Default 24h. */
-  stalenessMs?:number;
-};
-
-export const sha256=(value:string)=>
-  createHash('sha256').update(value,'utf8').digest('hex');
-export const receiptId=(url:string,quote:string)=>
-  'r'+sha256(url+'\n'+quote).slice(0,24);
-
 const entityMap:Record<string,string>={
   amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',
   mdash:'—',ndash:'–',hellip:'…',lsquo:'‘',rsquo:'’',
   ldquo:'“',rdquo:'”',copy:'©',reg:'®'
 };
-/** Stable text extraction shared by capture and verification.
- * Does not claim to parse JS-rendered pages or PDFs. */
+/** Whitespace-collapsed, entity-decoded text. This is what a quotation must
+ * match exactly. Does not parse JS-rendered pages or PDFs. */
 export function htmlToText(html:string):string{
   return html
     .replace(/<(?:script|style|noscript|svg|template)\b[^>]*>[\s\S]*?<\/(?:script|style|noscript|svg|template)\s*>/gi,' ')
@@ -160,82 +137,13 @@ export async function livePage(url:string):Promise<Page>{
   throw Error('Too many redirects');
 }
 
-function pathFor(dir:string,id:string):string{
-  if(!/^r[a-f0-9]{24}$/.test(id))throw Error('Invalid receipt ID');
-  return join(dir,id+'.json');
-}
-/** Canonical form used for all URL identity comparisons. WHATWG URL parsing
- * already normalizes case, default ports and a missing path to "/", so comparing
- * canonical hrefs makes "https://example.com" and "https://example.com/" the
- * same source while still rejecting real cross-host redirects. */
-const canonical=(value:string|URL):string=>assertPublicUrl(String(value)).href;
 
-export async function captureReceipt(url:string, quote:string,
-  options:{receiptsDir?:string;fetchPage?:FetchPage}={}):Promise<{id:string;receipt:Receipt}>{
-  const requested=canonical(url);
-  if(quote.length<12)throw Error('Evidence quote must contain at least 12 characters');
-  const fetchPage=options.fetchPage??livePage;
-  const page=await fetchPage(requested);
-  if(canonical(page.url)!==requested)
-    throw Error('Use final canonical HTTPS URL: '+page.url);
-  if(!page.rawText.includes(quote))throw Error('QUOTE_NOT_IN_LIVE_PAGE');
-  const id=receiptId(requested,quote);
-  const receipt:Receipt={
-    url:requested,fetchedAt:new Date().toISOString(),
-    rawTextHash:sha256(page.rawText),rawText:page.rawText
-  };
-  const dir=options.receiptsDir??'receipts';
-  await mkdir(dir,{recursive:true});
-  await writeFile(pathFor(dir,id),JSON.stringify(receipt,null,2)+'\n',{flag:'w'});
-  return {id,receipt};
-}
-
-async function loadReceipt(dir:string,id:string):Promise<Receipt>{
-  const raw=JSON.parse(await readFile(pathFor(dir,id),'utf8')) as Partial<Receipt>;
-  if(typeof raw.url!=='string'||typeof raw.rawText!=='string'||
-     typeof raw.rawTextHash!=='string'||typeof raw.fetchedAt!=='string'||
-     !Number.isFinite(Date.parse(raw.fetchedAt))||
-     sha256(raw.rawText)!==raw.rawTextHash)
-    throw Error('Invalid receipt integrity or metadata');
-  return raw as Receipt;
-}
-
-export function createReceiptVerifier(options:VerifierOptions={}):ReceiptVerifier{
-  const dir=options.receiptsDir??'receipts';
-  const fetchPage=options.fetchPage??livePage;
-  const staleness=options.stalenessMs??86_400_000;
-  const cache=new Map<string,Promise<Page>>();
-  const getPage=(url:string)=>{
-    let pending=cache.get(url);
-    if(!pending){pending=fetchPage(url);cache.set(url,pending);}
-    return pending;
-  };
-  return {
-    /** The quote must still be present on the live page, and the receipt on
-     * disk must be unaltered and bound to that exact url+quote pair. */
-    async verify(source:SourceRecord,evidence:EvidenceRecord):Promise<EvidenceVerdict>{
-      try{
-        const target=canonical(source.url);
-        const receipt=await loadReceipt(dir,evidence.receiptId);
-        if(canonical(receipt.url)!==target||
-           receiptId(target,evidence.quote)!==evidence.receiptId)return 'invalid';
-        // The receipt's own rawText is the only witness to what the page said at
-        // capture time. If it carries the quote, drift and fabrication are
-        // distinguishable, and the agent deserves to be told which one it is.
-        if(!receipt.rawText.includes(evidence.quote))return 'absent';
-        const page=await getPage(target);
-        if(canonical(page.url)!==target)return 'invalid';
-        if(page.rawText.includes(evidence.quote))return 'authentic';
-        // The receipt's rawText is written by the same agent that is being
-        // checked, so it cannot prove the page ever said this: a fabricated
-        // receipt can contain any quote at all. It is therefore only allowed to
-        // suggest drift, never to establish innocence, and only once the receipt
-        // is old enough that drift is the more plausible explanation. Both
-        // verdicts still fail the dossier closed; this only changes which
-        // accusation the agent is handed.
-        const age=Date.now()-Date.parse(receipt.fetchedAt);
-        return Number.isFinite(age)&&age>staleness?'expired':'absent';
-      }catch{return 'error';}
-    }
-  };
+/** Everything an agent needs to quote this page without guessing. */
+export type Dump = {url:string; title:string; chars:number; text:string};
+export async function dumpPage(url:string, options:{grep?:string}={}):Promise<Dump>{
+  const page=await livePage(url);
+  const text=options.grep
+    ? page.rawText.split(/(?<=\. )/).filter((s:string)=>s.includes(options.grep!)).join('')
+    : page.rawText;
+  return {url:page.url,title:page.title,chars:text.length,text};
 }

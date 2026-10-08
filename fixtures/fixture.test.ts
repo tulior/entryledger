@@ -1,15 +1,16 @@
 import {test,expect} from 'bun:test';
 import {readFile} from 'node:fs/promises';
-import {DossierStandardSchema} from '../contract.ts';
-const load=async(path:string)=>JSON.parse(await readFile(path,'utf8'));
-test('golden fixture matches strict schema',async()=>{
- const dossier=await load('fixtures/golden.json');
- const outcome=await DossierStandardSchema['~standard'].validate(dossier);
- expect('issues' in outcome).toBe(false);
+import {validateDossier} from '../contract.ts';
+const read=async(p:string)=>JSON.parse(await readFile(p,'utf8'));
+test('golden fixture is a well-formed synthetic dossier',async()=>{
+  const r=validateDossier(await read('fixtures/golden.json'),{allowSyntheticFixture:true});
+  expect(r.ok).toBe(true);
+  if(!r.ok)console.log(r.errors.map(e=>e.code+':'+e.path).join(' | '));
 });
-test('negative fixture differs from golden evidence',async()=>{
- const good=await load('fixtures/golden.json');
- const bad=await load('fixtures/slop.json');
- expect(bad.evidence.length).toBeGreaterThan(good.evidence.length);
- expect(bad.evidence[0].stance).toBe('context');
+test('negative fixture fails and differs from golden evidence',async()=>{
+  const slop=await read('fixtures/slop.json');
+  const golden=await read('fixtures/golden.json');
+  expect(JSON.stringify(slop.evidence)).not.toBe(JSON.stringify(golden.evidence));
+  const r=validateDossier(slop,{allowSyntheticFixture:true});
+  expect(r.ok).toBe(false);
 });

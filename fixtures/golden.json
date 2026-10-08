@@ -49,7 +49,7 @@
     {
       "id": "ev1",
       "sourceId": "project",
-      "receiptId": "r000000000000000000000000",
+      "url": "https://example.org/entryledger-kestrel-test",
       "quote": "Kestrel Atlas is a fictional encyclopedia fixture.",
       "locator": "paragraph 1",
       "stance": "supports",
@@ -59,7 +59,7 @@
     {
       "id": "ev2",
       "sourceId": "project",
-      "receiptId": "r000000000000000000000001",
+      "url": "https://example.org/entryledger-kestrel-test",
       "quote": "This fictional example consists of imaginary migration maps.",
       "locator": "paragraph 2",
       "stance": "supports",
@@ -69,7 +69,7 @@
     {
       "id": "ev3",
       "sourceId": "project",
-      "receiptId": "r000000000000000000000002",
+      "url": "https://example.org/entryledger-kestrel-test",
       "quote": "This material must not be presented as a real historical subject.",
       "locator": "paragraph 3",
       "stance": "supports",
