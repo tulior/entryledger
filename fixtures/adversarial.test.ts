@@ -140,7 +140,8 @@ test('a fabricated receipt cannot authenticate an invented quotation',async()=>{
     const evidence={id:'e',sourceId:'s',receiptId:id,quote:invented,locator:'p1',
       stance:'supports',challengesClaimIds:[],observedAt:'2026-10-08T00:00:00Z'} as const;
     // Self-consistent hash is not provenance: the live page must still contain it.
-    expect(await verifier.verify(source as never,evidence as never)).toBe(false);
+    // The receipt is freshly written, so this is fabrication, not page drift.
+    expect(await verifier.verify(source as never,evidence as never)).toBe('absent');
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 
@@ -164,7 +165,8 @@ test('a tampered receipt body is rejected even when the quote still matches',asy
       limitations:[]}} as const;
     const evidence={id:'e',sourceId:'s',receiptId:id,quote,locator:'p1',
       stance:'supports',challengesClaimIds:[],observedAt:'2026-10-08T00:00:00Z'} as const;
-    expect(await verifier.verify(source as never,evidence as never)).toBe(false);
+    // Integrity failure: whatever the verdict is, it must not authenticate.
+    expect(await verifier.verify(source as never,evidence as never)).not.toBe('authentic');
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 
