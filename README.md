@@ -15,6 +15,31 @@ upgrade scripts, old schema versions or migration code. After a real
 installation, commit bun.lock for reproducibility; a lockfile must never be
 fabricated.
 
+## Autonomous agent execution
+
+Give your search-enabled agent a subject title and [AGENT.md](AGENT.md).
+It researches the subject, captures source receipts, writes
+`out/dossier.json`, and repeats verification until valid.
+`dossier.schema.json` is the committed direct-JSON IR; `contract.ts`
+provides semantic constraints the JSON schema cannot encode.
+
+An independent semantic reviewer must be configured through
+`EVIDENCE_JUDGE_URL`, `EVIDENCE_JUDGE_MODEL`, and
+`EVIDENCE_JUDGE_API_KEY`. Source re-fetches require network egress
+protection against private hosts and DNS rebinding. Missing credentials,
+invalid receipts or unavailable source text make validation fail closed.
+
+```sh
+bun run receipt:capture 'https://example.org/source' 'Exact quote from the source'
+bun run dossier:check ./out/dossier.json
+bun run dossier:render ./out/dossier.json
+```
+
+`out/artifacts.json` is the two-string artifact array, only after successful
+re-validation. The brief is capped at 5,000 characters and contains inline
+source citations. `bun test` checks offline fixture, receipt and
+schema-contract invariants; synthetic test evidence is never publishable.
+
 ## One LLM-to-IR contract
 \`\`\`ts
 import {DossierSchema,DossierStandardSchema,validateDossier} from './contract.ts';
