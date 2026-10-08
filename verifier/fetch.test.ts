@@ -26,8 +26,9 @@ test('receipt capture and live re-fetch authenticate quotations',async()=>{
       receiptId:id,quote,locator:'test excerpt',stance:'supports',
       challengesClaimIds:[],observedAt:'2026-10-08T00:00:00Z'};
     const verifier=createReceiptVerifier({receiptsDir:dir,fetchPage});
-    expect(await verifier.verify(source,evidence)).toBe(true);
-    expect(await verifier.verify(source,{...evidence,quote:'Invented false evidence quoted nowhere'})).toBe(false);
+    expect(await verifier.verify(source,evidence)).toBe('authentic');
+    // An invented quote does not bind to this receipt id at all.
+    expect(await verifier.verify(source,{...evidence,quote:'Invented false evidence quoted nowhere'})).toBe('invalid');
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 

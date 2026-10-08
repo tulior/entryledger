@@ -62,7 +62,18 @@ Repeat at most six evidence-based attempts.
 When validation passes:
   bun run dossier:render out/dossier.json
 This independently revalidates; only then is out/artifacts.json publication
-output. It must be exactly [proposed article title, editorial brief]. The
+output. It also prints what the character cap discarded. If it fails with
+CATEGORY_OMITTED, the brief would have lost definition, limitations or the
+editorial cautions: shorten propositions, qualifiers and locators, or move those
+claims into presentation.requiredClaimIds. There is no flag to publish past
+this, deliberately. Locators are echoed verbatim into every [Sn:locator] marker,
+so long locators are expensive.
+
+Never quote a live counter. Rating totals, average ratings, view and subscriber
+counts and "N distinct works" aggregates change on their own, so the receipt
+stops matching the page within hours and the dossier fails as UNVERIFIED_EVIDENCE
+or EVIDENCE_EXPIRED. Quote the stable byline, credit or publication-date text
+instead, and put any metric in a qualifier marked as a dated observation. It must be exactly [proposed article title, editorial brief]. The
 brief must be at most 5000 characters, preserve critical limitations, and
 contain inline [S1:locator] citations with a source bibliography.
 

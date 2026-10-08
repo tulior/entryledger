@@ -14,13 +14,31 @@ const bgeProxy=(s:string)=>
 export type CostEstimate=(text:string)=>number; // injectable real BGE tokenizer counter
 export type Artifacts=readonly [proposedArticleTitle:string, editorialBrief:string];
 
-type Segment={id:string,kind:'claim'|'rule'|'meta',mandatory:boolean,utility:number,
+/** A segment the character cap could not fit. Rendering is lossy by design, so
+ *  what it discarded is reported rather than left for the caller to discover. */
+export type DroppedSegment={
+  id:string;kind:'claim'|'rule'|'meta';category:string;chars:number;
+};
+export type RenderAudit={
+  artifacts:Artifacts;
+  chars:number;maxChars:number;
+  included:readonly string[];
+  dropped:readonly DroppedSegment[];
+  /** Categories that held claims or rules but emitted nothing at all. */
+  lostCategories:readonly string[];
+};
+export type RenderOptions={maxChars?:number;tokenEstimate?:CostEstimate};
+/** Categories whose absence makes a brief useless or unsafe, not merely thinner.
+ *  A brief that never says what the subject is, never discloses a gap, or drops
+ *  its risk guidance is worse than one that is short: it reads as finished. The
+ *  other ten categories are enrichment, and a dense packer is entitled to shed
+ *  them, so losing one is reported but not fatal. */
+export const LOAD_BEARING=['definition','limitations','editorial_cautions'] as const;
+
+type Segment={id:string;kind:'claim'|'rule'|'meta',mandatory:boolean,utility:number,
   text:string,category:string,sourceIds:string[]};
-export function renderArtifacts(
-  validated:ValidatedDossier,
-  options:{maxChars?:number; tokenEstimate?:CostEstimate}={}
-):Artifacts {
-  assertValidatedReport(validated);
+
+function pack(validated:ValidatedDossier, options:RenderOptions={}):RenderAudit{
   const d=validated.dossier, max=options.maxChars??5000;
   if(max>5000||max<500) throw Error('maxChars must be between 500 and 5000');
   const countTokens=options.tokenEstimate??bgeProxy;
@@ -133,5 +151,35 @@ export function renderArtifacts(
   if(result.length>max) throw Error('RENDER_OVERFLOW');
   if(!/\[[Ss]\d+:/.test(result)) throw Error('NO_INLINE_CITATIONS');
   if(result.includes('\u0000')) throw Error('INVALID_TEXT');
-  return Object.freeze([quoteChar(d.article.title),result]) as Artifacts;
+  const artifacts=Object.freeze([quoteChar(d.article.title),result]) as Artifacts;
+  const included=ORDER.filter(cat=>segments.some(s=>ids.has(`${s.kind}:${s.id}`)&&s.category===cat));
+  // A category that asserted something and then rendered nothing is silent data
+  // loss, not a rendering success: the brief reads as complete while omitting it.
+  const lostCategories=ORDER.filter(cat=>
+    segments.some(s=>s.category===cat&&s.kind!=='meta')&&
+    !segments.some(s=>s.category===cat&&ids.has(`${s.kind}:${s.id}`)));
+  const dropped=segments.filter(s=>!ids.has(`${s.kind}:${s.id}`))
+    .map(s=>({id:s.id,kind:s.kind,category:s.category,chars:s.text.length}));
+  return Object.freeze({artifacts,chars:artifacts[1].length,maxChars:max,included,dropped,lostCategories});
+}
+
+const lossError=(lost:readonly string[],chars:number,max:number)=>
+  Error(`CATEGORY_OMITTED: ${lost.join(', ')} — the ${max}-character cap dropped every `+
+    `claim and rule in ${lost.length===1?'a load-bearing category':'load-bearing categories'}, `+
+    `so the brief would read as complete while omitting ${lost.length===1?'it':'them'} `+
+    `(rendered ${chars} characters). Shorten propositions, qualifiers and locators, or `+
+    `raise presentation.requiredClaimIds for that category. There is no option to `+
+    `publish a brief that omits what the subject is, what is unknown, or the risk guidance.`);
+
+/** Audit-only entry point: never throws on content loss, always reports it. */
+export function auditRender(validated:ValidatedDossier, options:RenderOptions={}):RenderAudit{
+  assertValidatedReport(validated);
+  return pack(validated,options);
+}
+export function renderArtifacts(validated:ValidatedDossier, options:RenderOptions={}):Artifacts{
+  assertValidatedReport(validated);
+  const audit=pack(validated,options);
+  const lostLoadBearing=audit.lostCategories.filter(cat=>(LOAD_BEARING as readonly string[]).includes(cat));
+  if(lostLoadBearing.length) throw lossError(lostLoadBearing,audit.chars,audit.maxChars);
+  return audit.artifacts;
 }

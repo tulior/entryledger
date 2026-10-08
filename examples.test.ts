@@ -1,6 +1,9 @@
 import { test, expect } from 'bun:test';
-import {DossierSchema,DossierStandardSchema,validateDossier,type ReceiptVerifier,type Dossier} from './contract.ts';
-import {renderArtifacts} from './render.ts';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {DossierSchema,DossierStandardSchema,validateDossier,type ReceiptVerifier,type Dossier,type ValidatedDossier} from './contract.ts';
+import {renderArtifacts, auditRender} from './render.ts';
 
 const at='2026-10-08T00:00:00Z';
 const p=(v:string)=>({precision:'day' as const,value:v});
@@ -20,7 +23,8 @@ export const synthVerifier:ReceiptVerifier={
   // text. Whether it supports the claim is the researching agent's judgement.
   async verify(source,evidence){
     const r=receipts[evidence.receiptId];
-    return !!r&&r.url===source.url&&r.locator===evidence.locator&&r.body.includes(evidence.quote);
+    if(!r||r.url!==source.url||r.locator!==evidence.locator)return 'invalid';
+    return r.body.includes(evidence.quote)?'authentic':'absent';
   }
 };
 
@@ -98,8 +102,8 @@ async function validatedFixture(){
   return report;
 }
 
-async function ready(){
- const report=await validateDossier(fixture,synthVerifier,{allowSyntheticFixture:true});
+async function ready(data:Dossier=fixture){
+ const report=await validateDossier(data,synthVerifier,{allowSyntheticFixture:true});
  expect(report.ok).toBe(true);
  if(!report.ok)throw Error(JSON.stringify(report.errors));
  return report;
@@ -189,4 +193,133 @@ test('invalid real calendar days fail semantic validation',async()=>{
 test('mandatory editorial information never silently truncates',async()=>{
  const report=await ready();
  expect(()=>renderArtifacts(report,{maxChars:500})).toThrow(/MANDATORY_OVERFLOW/);
+});
+
+// --- evidence expiry: drift is not fabrication --------------------------
+/** The highest-value change in this patch. A quotation that was genuinely on the
+ *  page when captured, and whose stored receipt still proves it, must not be
+ *  reported with the same code as a fabricated one. */
+test('a quotation that drifted off the page is expired, not absent',async()=>{
+ const {createReceiptVerifier,receiptId,sha256}=await import('./verifier/fetch.ts');
+ const dir=await mkdtemp(join(tmpdir(),'entryledger-expiry-'));
+ const url='https://example.org/atlas/mock-announcement';
+ const quote='subscribe 106,214';
+ const captured='Audience counters: subscribe 106,214 as of the capture date.';
+ const drifted='Audience counters: subscribe 106,215 as of the capture date.';
+ const id=receiptId(url,quote);
+ // Captured months ago: by now the counter on the live page has moved on.
+ await writeFile(join(dir,id+'.json'),JSON.stringify({url,
+  fetchedAt:'2026-01-05T00:00:00Z',rawTextHash:sha256(captured),rawText:captured}));
+ const source={id:'project',url,title:'t',authors:[],publisher:'p',kind:'primary',
+  accessed:'2026-10-08T00:00:00Z',quality:{assessment:'low',rationale:'r',
+  independenceRationale:'i',editorialOversight:false,coverage:'passing',limitations:[]}};
+ const evidence={id:'ev1',sourceId:'project',receiptId:id,quote,locator:'§1',
+  stance:'supports',challengesClaimIds:[],observedAt:'2026-10-08T00:00:00Z'};
+ const verifier=createReceiptVerifier({receiptsDir:dir,
+  fetchPage:async()=>({url,title:'',rawText:drifted})});
+ // Present in the receipt, gone from the live page: drift.
+ expect(await verifier.verify(source as never,evidence as never)).toBe('expired');
+ // Still on the live page: ordinary authentication.
+ const still=createReceiptVerifier({receiptsDir:dir,fetchPage:async()=>({url,title:'',rawText:captured})});
+ expect(await still.verify(source as never,evidence as never)).toBe('authentic');
+ // Never on the page in the first place: a genuine absence, distinct again.
+ const other='this was never on the page at all';
+ const oid=receiptId(url,other);
+ await writeFile(join(dir,oid+'.json'),JSON.stringify({url,
+  fetchedAt:'2026-01-05T00:00:00Z',rawTextHash:sha256('unrelated text'),rawText:'unrelated text'}));
+ expect(await verifier.verify(source as never,{...evidence,receiptId:oid,quote:other} as never))
+  .toBe('absent');
+ // The security property: a FRESH receipt cannot buy the softer diagnosis. The
+ // receipt is written by the agent under test, so it may not exonerate it.
+ await writeFile(join(dir,id+'.json'),JSON.stringify({url,
+  fetchedAt:new Date().toISOString(),rawTextHash:sha256(captured),rawText:captured}));
+ expect(await verifier.verify(source as never,evidence as never)).toBe('absent');
+});
+test('drift is reported as EVIDENCE_EXPIRED, never as UNVERIFIED_EVIDENCE',async()=>{
+ const drifting:ReceiptVerifier={async verify(s,e){
+  return e.quote===quote2?'expired':await synthVerifier.verify(s,e);
+ }};
+ const data=structuredClone(fixture);
+ data.evidence[1]!.quote=quote2;
+ const result=await validateDossier(data,drifting,{allowSyntheticFixture:true});
+ expect(result.ok).toBe(false);
+ if(!result.ok){
+  const codes=result.errors.map(e=>e.code);
+  expect(codes).toContain('EVIDENCE_EXPIRED');
+  expect(codes).not.toContain('UNVERIFIED_EVIDENCE');
+  const message=result.errors.find(e=>e.code==='EVIDENCE_EXPIRED')!.message;
+  expect(message).toContain('do not shorten the quotation');
+ }
+});
+
+// --- renderer coverage integrity -----------------------------------------
+/** A dossier carrying many long, low-utility claims in one category, so the
+ *  character cap has to drop some of them. */
+function bloatedFixture(category:'significance'|'reception',count:number):Dossier{
+ const d=structuredClone(fixture);
+ for(let i=1;i<=count;i++){
+  const id=`b${i}`;
+  d.claims.push({id,category,subjectEntityId:'kestrel',predicate:'synthetic',
+   proposition:`Synthetic filler claim ${i}: ${'padding text '.repeat(30)}`,
+   qualifiers:['Qualified by a long synthetic note. '.repeat(10)],
+   editorialRisk:'normal',status:'verified',evidenceIds:['ev5'],verification:'direct'});
+  d.presentation.weights.push({claimId:id,utility:5});
+ }
+ d.coverage=d.coverage.map(c=>c.category===category
+  ?{...c,state:'covered' as const,reason:'Covered by a synthetic claim'} : c);
+ return d;
+}
+/** Smallest cap the mandatory content fits into, so no test hard-codes a character
+ *  count that upstream wording changes would invalidate. */
+function mandatoryFloor(report:ValidatedDossier):number{
+ for(let max=500;max<=5000;max+=10){
+  try{ auditRender(report,{maxChars:max}); return max; }catch(e){
+   if(!/MANDATORY_OVERFLOW/.test(String((e as Error).message)))throw e;
+  }
+ }
+ throw Error('mandatory content never fit');
+}
+test('losing a load-bearing category is refused; losing an ordinary one is not',async()=>{
+ // The base fixture already requires definition, limitations and the caution rule,
+ // so at a tight cap only the optional chronology and significance claims go.
+ const report=await ready();
+ const cap=mandatoryFloor(report)+20;
+ const audit=auditRender(report,{maxChars:cap});
+ expect(audit.lostCategories).toEqual(['chronology','significance']);
+ expect(audit.dropped.map(x=>x.id).sort()).toContain('release');
+ expect(audit.artifacts[1]).not.toContain('CHRONOLOGY:');
+ expect(()=>renderArtifacts(report,{maxChars:cap})).not.toThrow();
+ // Now make the definition optional: the same squeeze becomes fatal.
+ const loose=structuredClone(fixture);
+ loose.presentation.requiredClaimIds=['identity','limit'];
+ const looseReport=await ready(loose);
+ const looseCap=mandatoryFloor(looseReport)+20;
+ let message='';
+ try{renderArtifacts(looseReport,{maxChars:looseCap});}catch(e){message=(e as Error).message;}
+ expect(message).toMatch(/CATEGORY_OMITTED/);
+ expect(message).toContain('definition');
+ // And there is no option to publish past it.
+ expect(()=>renderArtifacts(looseReport,{maxChars:looseCap,strictCoverage:false} as never))
+  .toThrow(/CATEGORY_OMITTED/);
+});
+test('dropping some claims inside a surviving category is not a failure',async()=>{
+ const report=await ready(bloatedFixture('reception',10));
+ const audit=auditRender(report);
+ expect(audit.lostCategories).toEqual([]);
+ expect(audit.dropped.length).toBeGreaterThan(0);
+ expect(audit.included).toContain('reception');
+ expect(audit.chars).toBeLessThanOrEqual(5000);
+ expect(()=>renderArtifacts(report)).not.toThrow();
+});
+test('a dossier that fits reports no loss at all',async()=>{
+ const report=await ready();
+ const audit=auditRender(report);
+ expect(audit.lostCategories).toEqual([]);
+ expect(audit.dropped).toEqual([]);
+ expect(audit.chars).toBeLessThanOrEqual(5000);
+ expect(audit.artifacts[1]).toContain('DEFINITION:');
+});
+test('forged success reports cannot authorize auditing',()=>{
+ expect(()=>auditRender({ok:true,dossier:fixture,warnings:[]} as never))
+  .toThrow(/UNVALIDATED_DOSSIER/);
 });

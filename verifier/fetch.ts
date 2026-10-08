@@ -12,7 +12,7 @@ import {readFile, mkdir, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {lookup} from 'node:dns/promises';
 import {isIP} from 'node:net';
-import type {ReceiptVerifier, EvidenceRecord, SourceRecord} from '../contract.ts';
+import type {ReceiptVerifier, EvidenceRecord, SourceRecord, EvidenceVerdict} from '../contract.ts';
 
 export type Receipt = {
   url:string;
@@ -25,6 +25,9 @@ export type FetchPage = (url:string)=>Promise<Page>;
 export type VerifierOptions = {
   receiptsDir?:string;
   fetchPage?:FetchPage;
+  /** How old a receipt must be before a vanished quotation is reported as page
+   *  drift rather than fabrication. Default 24h. */
+  stalenessMs?:number;
 };
 
 export const sha256=(value:string)=>
@@ -200,6 +203,7 @@ async function loadReceipt(dir:string,id:string):Promise<Receipt>{
 export function createReceiptVerifier(options:VerifierOptions={}):ReceiptVerifier{
   const dir=options.receiptsDir??'receipts';
   const fetchPage=options.fetchPage??livePage;
+  const staleness=options.stalenessMs??86_400_000;
   const cache=new Map<string,Promise<Page>>();
   const getPage=(url:string)=>{
     let pending=cache.get(url);
@@ -209,16 +213,29 @@ export function createReceiptVerifier(options:VerifierOptions={}):ReceiptVerifie
   return {
     /** The quote must still be present on the live page, and the receipt on
      * disk must be unaltered and bound to that exact url+quote pair. */
-    async verify(source:SourceRecord,evidence:EvidenceRecord){
+    async verify(source:SourceRecord,evidence:EvidenceRecord):Promise<EvidenceVerdict>{
       try{
         const target=canonical(source.url);
         const receipt=await loadReceipt(dir,evidence.receiptId);
         if(canonical(receipt.url)!==target||
-           receiptId(target,evidence.quote)!==evidence.receiptId||
-           !receipt.rawText.includes(evidence.quote))return false;
+           receiptId(target,evidence.quote)!==evidence.receiptId)return 'invalid';
+        // The receipt's own rawText is the only witness to what the page said at
+        // capture time. If it carries the quote, drift and fabrication are
+        // distinguishable, and the agent deserves to be told which one it is.
+        if(!receipt.rawText.includes(evidence.quote))return 'absent';
         const page=await getPage(target);
-        return canonical(page.url)===target&&page.rawText.includes(evidence.quote);
-      }catch{return false;}
+        if(canonical(page.url)!==target)return 'invalid';
+        if(page.rawText.includes(evidence.quote))return 'authentic';
+        // The receipt's rawText is written by the same agent that is being
+        // checked, so it cannot prove the page ever said this: a fabricated
+        // receipt can contain any quote at all. It is therefore only allowed to
+        // suggest drift, never to establish innocence, and only once the receipt
+        // is old enough that drift is the more plausible explanation. Both
+        // verdicts still fail the dossier closed; this only changes which
+        // accusation the agent is handed.
+        const age=Date.now()-Date.parse(receipt.fetchedAt);
+        return Number.isFinite(age)&&age>staleness?'expired':'absent';
+      }catch{return 'error';}
     }
   };
 }

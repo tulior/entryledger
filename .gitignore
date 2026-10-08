@@ -7,3 +7,7 @@ coverage/
 # Agent-generated data and potentially sensitive source snapshots
 out/
 receipts/
+work/receipts.json
+work/verify.log
+work/*.out
+work/raw/

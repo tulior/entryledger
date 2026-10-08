@@ -64,6 +64,15 @@ The Standard Schema v1 interface is a tiny validator bridge, not a legacy
 schema or translation layer. It doesn't modify generated JSON or the
 native JSON Schema.
 
+A quotation is verified by exact substring match against the live page, which
+assumes the quoted text is *stable*. It often is not: any quotation containing a
+rating count, an average rating, a view or subscriber total, or an "N distinct
+works" aggregate is unverifiable within hours. `EVIDENCE_EXPIRED` separates that
+from fabrication, but only for receipts old enough (24h by default) that drift is
+the more plausible reading, and it still fails the dossier closed — it is a
+better diagnosis, never a permission. **Prefer quotations with no live numbers
+in them.**
+
 ## Publication gate
 TypeBox validates shape, not truth. `validateDossier` verifies cross-references,
 authenticated source receipts, support and corroboration structure, source
@@ -80,6 +89,14 @@ misreading passes, and that judgement is the agent's to get right.
 
 The renderer produces exactly two plaintext artifacts. The brief has a strict
 5,000-character limit, retaining critical claims, citations, qualifications,
-and source data. A mandatory-content overflow throws rather than truncates.
+and source data. A mandatory-content overflow throws rather than truncates,
+and so does a cap that would drop every claim and rule in a load-bearing
+category — `definition`, `limitations` or `editorial_cautions`. `renderArtifacts`
+raises `CATEGORY_OMITTED` rather than publish a brief that reads as complete
+while omitting what the subject is, what is unknown, or the risk guidance. There
+is no option to publish past it. Losing one of the other ten categories is
+reported but not fatal; that is the packer doing its job. `auditRender` returns
+the same artifacts alongside `included`, `dropped` and `lostCategories`, and
+`bun run dossier:check` reports renderability before you publish.
 
 A successful automated check does not replace human editorial source review.

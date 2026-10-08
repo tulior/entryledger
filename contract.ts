@@ -147,8 +147,20 @@ const deepFreeze=(value:unknown):void=>{
  * This is deliberately not a semantic reviewer: the researching agent reads the
  * sources and judges entailment itself. What this guarantees is only that the
  * quoted span really occurs on the page it is attributed to. */
+export type EvidenceVerdict =
+  /** Quote is present on the live page and matches its receipt. */
+  | 'authentic'
+  /** Quote WAS on the page when captured, and the stored receipt still proves it,
+   *  but the live page has since changed. Not fabrication: drift. */
+  | 'expired'
+  /** Quote is absent from the live page and was never in the receipt. */
+  | 'absent'
+  /** Receipt is missing, unaltered-content-failed, or not bound to this url+quote. */
+  | 'invalid'
+  /** The fetch itself failed; indistinguishable from unverified, so it fails closed. */
+  | 'error';
 export interface ReceiptVerifier {
-  verify(source:SourceRecord, evidence:EvidenceRecord):Promise<boolean>;
+  verify(source:SourceRecord, evidence:EvidenceRecord):Promise<EvidenceVerdict>;
 }
 
 const diag=(code:string,path:string,message:string,severity:'error'|'warning'='error'):
@@ -341,9 +353,20 @@ export async function validateDossier(raw:unknown, verifier:ReceiptVerifier,
     await Promise.all([...evidenceUsed].map(async id=>{
       const ev=evs.get(id), source=ev && srcs.get(ev.sourceId);
       if(!ev||!source) return;
-      try {if(!await verifier.verify(source,ev))
-        fail('UNVERIFIED_EVIDENCE',`evidence.${id}`,
-          'Quotation is not present on the live source page, or its receipt does not match.');
+      // 'expired' and 'absent' are the same failure to the dossier but very
+      // different facts: one means the page moved, the other means the quotation
+      // was not there. Collapsing them into one code accuses an honest agent of
+      // fabrication, which is the one response the design must never invite.
+      try {
+        const verdict=await verifier.verify(source,ev);
+        if(verdict==='expired')
+          fail('EVIDENCE_EXPIRED',`evidence.${id}`,
+            'Quotation was captured from this page and its receipt still proves it, but '+
+            'the live page has since changed. Re-capture the receipt or drop the claim; '+
+            'do not shorten the quotation.');
+        else if(verdict!=='authentic')
+          fail('UNVERIFIED_EVIDENCE',`evidence.${id}`,
+            'Quotation is not present on the live source page, or its receipt does not match.');
       }
       catch {fail('RECEIPT_ERROR',`evidence.${id}`,'Receipt verification failed closed.');}
     }));
