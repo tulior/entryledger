@@ -223,7 +223,7 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
     }
     return sourceIds;
   };
-  const checkAttribution=(a:z.infer<typeof Attribution>,path:string,sourceIds:Set<string>)=>{
+  const checkAttribution=(a:Type.Static<typeof Attribution>,path:string,sourceIds:Set<string>)=>{
     if(a.type==='entity') exists(ents,a.entityId,path);
     else {exists(srcs,a.sourceId,path); if(!sourceIds.has(a.sourceId))
       fail('UNSOURCED_ATTRIBUTION',path,'Attribution must appear among cited evidence sources.');}
