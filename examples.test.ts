@@ -11,11 +11,11 @@ const quote4='This example is fabricated for testing and is not a historical sub
 const quote5='The design helps illustrate evidence trails, not historical significance.';
 
 /** Controlled synthetic corpus, never real-world sources or publishing evidence. */
-const receipts:Record<string,{url:string,locator:string,body:string}>={
+export const receipts:Record<string,{url:string,locator:string,body:string}>={
   rec1:{url:'https://example.org/atlas/mock-announcement',locator:'§1',body:quote1+' '+quote2+' '+quote3},
   rec2:{url:'https://example.org/atlas/mock-review',locator:'§2',body:quote4+' '+quote5}
 };
-const verifier:EvidenceVerifier={
+export const synthVerifier:EvidenceVerifier={
   async reviewSource(source){return Object.values(receipts).some(r=>r.url===source.url);},
   async reviewStatement(statement,status,evidence){
     // Synthetic, fixed reviewed facts: this is only an integration test oracle.
@@ -101,14 +101,14 @@ export const fixture:Dossier={
 
 
 async function validatedFixture(){
-  const report=await validateDossier(fixture,verifier,{allowSyntheticFixture:true});
+  const report=await validateDossier(fixture,synthVerifier,{allowSyntheticFixture:true});
   expect(report.ok).toBe(true);
   if(!report.ok) throw Error(JSON.stringify(report.errors));
   return report;
 }
 
 async function ready(){
- const report=await validateDossier(fixture,verifier,{allowSyntheticFixture:true});
+ const report=await validateDossier(fixture,synthVerifier,{allowSyntheticFixture:true});
  expect(report.ok).toBe(true);
  if(!report.ok)throw Error(JSON.stringify(report.errors));
  return report;
@@ -128,7 +128,7 @@ test('Standard Schema validates direct LLM JSON without conversion',async()=>{
  expect('issues' in checked).toBe(false);
  if(!('value' in checked))throw Error('Not validated');
  expect(checked.value).toEqual(json);
- expect((await validateDossier(json,verifier,{allowSyntheticFixture:true})).ok).toBe(true);
+ expect((await validateDossier(json,synthVerifier,{allowSyntheticFixture:true})).ok).toBe(true);
 });
 test('strict schema rejects unrecognized properties and missing arrays',async()=>{
  const extra=structuredClone(fixture) as typeof fixture & {legacy?:boolean};
@@ -154,35 +154,35 @@ test('forged success reports cannot authorize rendering',()=>{
  expect(()=>renderArtifacts({ok:true,dossier:fixture,warnings:[]} as never)).toThrow(/UNVALIDATED_DOSSIER/);
 });
 test('synthetic data cannot authorize publication',async()=>{
- const result=await validateDossier(fixture,verifier);
+ const result=await validateDossier(fixture,synthVerifier);
  expect(result.ok).toBe(false);
  if(!result.ok)expect(result.errors.some(e=>e.code==='SYNTHETIC_NOT_PUBLISHABLE')).toBe(true);
 });
 test('unauthenticated quotes are rejected',async()=>{
  const data=structuredClone(fixture);
  data.evidence[0]!.quote='Unrelated content not contained in the trusted receipt.';
- const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ const result=await validateDossier(data,synthVerifier,{allowSyntheticFixture:true});
  expect(result.ok).toBe(false);
  if(!result.ok)expect(result.errors.some(e=>e.code==='UNVERIFIED_EVIDENCE')).toBe(true);
 });
 test('unreviewed claims cannot be declared verified',async()=>{
  const data=structuredClone(fixture);
  data.claims[0]!.proposition='A real project documented by historians.';
- const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ const result=await validateDossier(data,synthVerifier,{allowSyntheticFixture:true});
  expect(result.ok).toBe(false);
  if(!result.ok)expect(result.errors.some(e=>e.code==='UNREVIEWED_CLAIM')).toBe(true);
 });
 test('dangling references are rejected',async()=>{
  const data=structuredClone(fixture);
  data.claims[0]!.subjectEntityId='missing';
- const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ const result=await validateDossier(data,synthVerifier,{allowSyntheticFixture:true});
  expect(result.ok).toBe(false);
  if(!result.ok)expect(result.errors.some(e=>e.code==='DANGLING_REFERENCE')).toBe(true);
 });
 test('invalid real calendar days fail semantic validation',async()=>{
  const data=structuredClone(fixture);
  data.sources[0]!.published={precision:'day',value:'2025-02-30'};
- const result=await validateDossier(data,verifier,{allowSyntheticFixture:true});
+ const result=await validateDossier(data,synthVerifier,{allowSyntheticFixture:true});
  expect(result.ok).toBe(false);
  if(!result.ok)expect(result.errors.some(e=>e.code==='INVALID_CALENDAR_DATE')).toBe(true);
 });

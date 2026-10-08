@@ -6,6 +6,8 @@
 import {createHash} from 'node:crypto';
 import {readFile, mkdir, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
+import {lookup} from 'node:dns/promises';
+import {isIP} from 'node:net';
 import type {EvidenceVerifier, EvidenceRecord, SourceRecord, Claim} from '../contract.ts';
 
 export type Receipt = {
@@ -66,13 +68,56 @@ export function assertPublicUrl(value:string):URL{
   return url;
 }
 
+/** True for any address that must never be reachable through the fetcher:
+ * loopback, RFC1918, link-local (incl. cloud metadata), CGNAT, multicast,
+ * reserved and IPv6 equivalents. */
+export function isPrivateAddress(ip:string):boolean{
+  const kind=isIP(ip);
+  if(!kind) return false;
+  if(kind===4){
+    const o=ip.split('.').map(Number) as [number,number,number,number];
+    const [a,b]=o;
+    if(a===0||a===10||a===127) return true;
+    if(a===169&&b===254) return true;           // link-local + cloud metadata
+    if(a===172&&b>=16&&b<=31) return true;
+    if(a===192&&b===168) return true;
+    if(a===100&&b>=64&&b<=127) return true;     // CGNAT
+    if(a===192&&b===0) return true;             // 192.0.0.0/24 + 192.0.2.0/24
+    if(a===198&&(b===18||b===19)) return true;  // benchmarking
+    if(a>=224) return true;                      // multicast + reserved + broadcast
+    return false;
+  }
+  const v=ip.toLowerCase();
+  if(v==='::'||v==='::1') return true;
+  if(v.startsWith('fe80')||v.startsWith('fc')||v.startsWith('fd')) return true; // link-local, ULA
+  if(v.startsWith('ff')) return true;                                            // multicast
+  // IPv4-mapped / IPv4-compatible (::ffff:127.0.0.1) must be unwrapped first.
+  const mapped=v.match(/^::(?:ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if(mapped) return isPrivateAddress(mapped[1]!);
+  return false;
+}
+
+/** Resolve the hostname and refuse any address in private/reserved space.
+ * This is the control that string validation alone cannot provide: it defeats
+ * DNS rebinding because the address actually dialled is the one checked. */
+export async function assertPublicUrlResolved(url:URL):Promise<void>{
+  const host=url.hostname.replace(/^\[|\]$/g,'');
+  let addrs:{address:string}[];
+  try{ addrs=await lookup(host,{all:true,verbatim:true}); }
+  catch{ throw Error('Host could not be resolved.'); }
+  if(!addrs.length) throw Error('Host resolved to no addresses.');
+  for(const {address} of addrs)
+    if(isPrivateAddress(address))
+      throw Error('Host resolves to a private, loopback or link-local address.');
+}
+
 /** Fetch a bounded live representation. Redirects are checked hop by hop.
- * For untrusted URLs in production, also enforce DNS and egress firewall
- * restrictions against private/reserved IPs (DNS rebinding cannot be solved
- * by string validation alone). */
+ * Every hop is DNS-resolved and refused if it lands in private/reserved space,
+ * so a rebinding host cannot reach internal services (see assertPublicUrlResolved). */
 export async function livePage(url:string):Promise<Page>{
   let current=assertPublicUrl(url).href;
   for(let redirects=0;redirects<5;redirects++){
+    await assertPublicUrlResolved(new URL(current));
     const res=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(15000),
       headers:{'User-Agent':'EntryLedger/1.0 (evidence verification)'}});
     if([301,302,303,307,308].includes(res.status)){
@@ -115,17 +160,25 @@ function pathFor(dir:string,id:string):string{
   if(!/^r[a-f0-9]{24}$/.test(id))throw Error('Invalid receipt ID');
   return join(dir,id+'.json');
 }
+/** Canonical form used for all URL identity comparisons. WHATWG URL parsing
+ * already normalizes case, default ports and a missing path to "/", so comparing
+ * canonical hrefs makes "https://example.com" and "https://example.com/" the
+ * same source while still rejecting real cross-host redirects. */
+const canonical=(value:string|URL):string=>assertPublicUrl(String(value)).href;
+
 export async function captureReceipt(url:string, quote:string,
   options:{receiptsDir?:string;fetchPage?:FetchPage}={}):Promise<{id:string;receipt:Receipt}>{
-  assertPublicUrl(url);
+  const requested=canonical(url);
   if(quote.length<12)throw Error('Evidence quote must contain at least 12 characters');
   const fetchPage=options.fetchPage??livePage;
-  const page=await fetchPage(url);
-  if(page.url!==url)throw Error('Use final canonical HTTPS URL: '+page.url);
+  const page=await fetchPage(requested);
+  if(canonical(page.url)!==requested)
+    throw Error('Use final canonical HTTPS URL: '+page.url);
   if(!page.rawText.includes(quote))throw Error('QUOTE_NOT_IN_LIVE_PAGE');
-  const id=receiptId(url,quote);
+  const id=receiptId(requested,quote);
   const receipt:Receipt={
-    url,fetchedAt:new Date().toISOString(),rawTextHash:sha256(page.rawText),rawText:page.rawText
+    url:requested,fetchedAt:new Date().toISOString(),
+    rawTextHash:sha256(page.rawText),rawText:page.rawText
   };
   const dir=options.receiptsDir??'receipts';
   await mkdir(dir,{recursive:true});
@@ -193,9 +246,10 @@ export function createReceiptVerifier(options:VerifierOptions={}):EvidenceVerifi
   return {
     async reviewSource(source:SourceRecord){
       try{
-        assertPublicUrl(source.url);
-        const page=await getPage(source.url);
-        if(page.url!==source.url)return false;
+        const target=assertPublicUrl(source.url);
+        await assertPublicUrlResolved(target);
+        const page=await getPage(target.href);
+        if(canonical(page.url)!==target.href)return false;
         const verdict=await judge('source',{
           metadata:source,pageTitle:page.title,sourceExcerpt:page.rawText.slice(0,12000)
         });
@@ -204,12 +258,13 @@ export function createReceiptVerifier(options:VerifierOptions={}):EvidenceVerifi
     },
     async verify(source:SourceRecord,evidence:EvidenceRecord){
       try{
+        const target=canonical(source.url);
         const receipt=await loadReceipt(dir,evidence.receiptId);
-        if(receipt.url!==source.url||
-           receiptId(source.url,evidence.quote)!==evidence.receiptId||
+        if(canonical(receipt.url)!==target||
+           receiptId(target,evidence.quote)!==evidence.receiptId||
            !receipt.rawText.includes(evidence.quote))return false;
-        const page=await getPage(source.url);
-        return page.url===source.url&&page.rawText.includes(evidence.quote);
+        const page=await getPage(target);
+        return canonical(page.url)===target&&page.rawText.includes(evidence.quote);
       }catch{return false;}
     },
     async reviewStatement(statement:string,status:Claim['status'],evs:EvidenceRecord[]){
