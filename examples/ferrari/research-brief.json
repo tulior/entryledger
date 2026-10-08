@@ -1,0 +1,5 @@
+[
+  {"url":"https://en.wikipedia.org/wiki/Ferrari","role":"tertiary","why":"encyclopedia synthesis of company history"},
+  {"url":"https://www.icartea.com/en/news/how-enzo-s-dream-became-maranello-the-story-of-how-ferrari-was-founded-and-rose-to-racing-and-luxury-legend","role":"independent_secondary","why":"independent trade writeup of the founding"},
+  {"url":"https://www.ferrari.com/en-EN/magazine/articles/enzo-ferrari-38-anniversary","role":"primary","why":"manufacturer's own account"}
+]

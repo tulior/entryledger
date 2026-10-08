@@ -1,6 +1,20 @@
 # EntryLedger research skill
 
-INPUT: ARTICLE="<subject name>"
+## The one command
+
+```sh
+ARTICLE="<subject>" bun run subject
+```
+
+This is the whole run. It walks six explicit stages — inspect, discover,
+inspect sources, record, validate, render — prints what happened at each, and
+exits non-zero with an explanation if any stage cannot complete. It removes
+any stale `out/artifacts.json` before it starts, so a failed run can never
+leave a plausible-looking artifact behind.
+
+It is a worklist, not an agent. It does not search the web and it does not
+decide anything. Stage 3 retrieves pages for you; stages 1, 2 and 4 are yours.
+
 OUTPUT: out/dossier.json and out/artifacts.json — context for another agent
 that will verify the references and write the article.
 
@@ -20,13 +34,14 @@ no transformation step.
 
 1. Disambiguate the subject before scoping it. Similarly named subjects are the
    most common way a handoff misleads its consumer.
-2. Read the sources. Use the one command that touches the network:
-   `bun run page:dump <url> [substring]`
-   It prints the page as the pipeline extracts it. **Copy quotations from that
-   output.** Search-result snippets do not match it: the extractor collapses
-   whitespace, so a real page reads `based in Maranello , Italy`, with a space
-   before the comma. Every quote in the dossier must appear verbatim in a
-   dumped page.
+2. Record your candidate sources in `out/research-brief.json`:
+   `[{"url":"...","role":"independent_secondary","why":"..."}]`
+   `bun run subject` then fetches each one and prints the extracted text, or
+   records it as unreachable. **Copy quotations from that output.**
+   Search-result snippets do not match it: the extractor collapses whitespace,
+   so a real page reads `based in Maranello , Italy`, with a space before the
+   comma. Every quote in the dossier must appear verbatim in a dumped page.
+   To inspect a single page by hand: `bun run page:dump <url> [substring]`.
 3. Many sites return 403 to non-browser clients, and most primary documents are
    PDFs this cannot read. When a source is unreachable, do not substitute a
    weaker source silently — record the gap in `coverage` with `state:
@@ -41,10 +56,13 @@ no transformation step.
    contradiction and must name the claim it contradicts; only `supports`
    evidence can carry a verified or corroborated claim.
 
-## Before rendering
+## Validating and rendering
+
+`bun run subject` does both. Individually:
 
 ```sh
 bun run dossier:check out/dossier.json
+bun run dossier:render out/dossier.json
 ```
 
 An error means the dossier is malformed — fix the structure and re-run. A
@@ -75,3 +93,10 @@ Say it is well-formed and that its references are stated for review.
 If the subject cannot be researched — sources unreachable, no usable coverage —
 say so plainly and render the dossier with honest gaps. A short, truthful
 handoff is worth more than a complete-looking one.
+
+## Bounded cost
+
+One run fetches at most 40 requests, 8 MB and 180 seconds. Exhausting any of
+those stops the run with an explicit error rather than spending more. Each
+page is capped at 2 MB and 15 seconds. If a run hits a ceiling, decide whether
+to raise it deliberately or narrow the source list — do not retry blindly.

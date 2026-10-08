@@ -4,12 +4,14 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "bun test",
+    "dossier:check": "bun scripts/check-dossier.ts",
+    "dossier:render": "bun scripts/render-dossier.ts",
+    "network:check": "bun tools/network-checks.ts",
+    "page:dump": "bun scripts/dump-page.ts",
     "schema:export": "bun scripts/export-schema.ts",
     "schema:verify": "bun scripts/verify-schema.ts",
-    "page:dump": "bun scripts/dump-page.ts",
-    "dossier:check": "bun scripts/check-dossier.ts",
-    "dossier:render": "bun scripts/render-dossier.ts"
+    "subject": "bun scripts/run-subject.ts",
+    "test": "bun test"
   },
   "dependencies": {
     "typebox": "1.3.36"

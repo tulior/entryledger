@@ -1,0 +1,286 @@
+{
+  "origin": "research",
+  "subjectEntityId": "ferrari",
+  "article": {
+    "title": "Ferrari",
+    "alternatives": [
+      "Ferrari S.p.A.",
+      "Ferrari (car)"
+    ],
+    "scope": "standalone_candidate",
+    "scopeClaimIds": [
+      "c_identity",
+      "c_definition"
+    ],
+    "disambiguationClaimIds": [
+      "c_disamb"
+    ]
+  },
+  "entities": [
+    {
+      "id": "ferrari",
+      "kind": "organization",
+      "name": "Ferrari",
+      "aliases": [
+        "Ferrari S.p.A."
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "s_wiki",
+      "url": "https://en.wikipedia.org/wiki/Ferrari",
+      "title": "Ferrari - Wikipedia",
+      "authors": [
+        "Wikipedia contributors"
+      ],
+      "publisher": "Wikimedia Foundation",
+      "kind": "tertiary",
+      "accessed": "2026-10-08T00:00:00Z",
+      "quality": {
+        "assessment": "medium",
+        "rationale": "Encyclopedia synthesis with citations",
+        "independenceRationale": "Community-maintained tertiary source",
+        "editorialOversight": true,
+        "coverage": "substantial",
+        "limitations": []
+      }
+    },
+    {
+      "id": "s_ica",
+      "url": "https://www.icartea.com/en/news/how-enzo-s-dream-became-maranello-the-story-of-how-ferrari-was-founded-and-rose-to-racing-and-luxury-legend",
+      "title": "How Enzo's Dream Became Maranello",
+      "authors": [
+        "icartea editorial"
+      ],
+      "publisher": "icartea.com",
+      "kind": "independent_secondary",
+      "accessed": "2026-10-08T00:00:00Z",
+      "quality": {
+        "assessment": "medium",
+        "rationale": "Independent trade writeup",
+        "independenceRationale": "No affiliation with Ferrari",
+        "editorialOversight": true,
+        "coverage": "substantial",
+        "limitations": [
+          "Secondary account"
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev_a",
+      "sourceId": "s_wiki",
+      "url": "https://en.wikipedia.org/wiki/Ferrari",
+      "quote": "is an Italian luxury sports car manufacturer based in Maranello , Italy.",
+      "locator": "lead",
+      "stance": "supports",
+      "challengesClaimIds": [],
+      "observedAt": "2026-10-08T00:00:00Z"
+    },
+    {
+      "id": "ev_b",
+      "sourceId": "s_ica",
+      "url": "https://www.icartea.com/en/news/how-enzo-s-dream-became-maranello-the-story-of-how-ferrari-was-founded-and-rose-to-racing-and-luxury-legend",
+      "quote": "In 1947, he founded Ferrari S.p.A. in Maranello, and unveiled the first true Ferrari: the 125 S",
+      "locator": "history",
+      "stance": "supports",
+      "challengesClaimIds": [],
+      "observedAt": "2026-10-08T00:00:00Z"
+    }
+  ],
+  "claims": [
+    {
+      "id": "c_identity",
+      "category": "identity",
+      "subjectEntityId": "ferrari",
+      "predicate": "is",
+      "proposition": "Ferrari is an Italian luxury sports car manufacturer based in Maranello.",
+      "qualifiers": [],
+      "editorialRisk": "critical",
+      "status": "verified",
+      "evidenceIds": [
+        "ev_a"
+      ],
+      "verification": "direct"
+    },
+    {
+      "id": "c_definition",
+      "category": "definition",
+      "subjectEntityId": "ferrari",
+      "predicate": "founded",
+      "proposition": "Ferrari S.p.A. was founded in 1947 in Maranello and the 125 S was its first car.",
+      "qualifiers": [],
+      "editorialRisk": "critical",
+      "status": "verified",
+      "evidenceIds": [
+        "ev_b"
+      ],
+      "verification": "direct"
+    },
+    {
+      "id": "c_disamb",
+      "category": "disambiguation",
+      "subjectEntityId": "ferrari",
+      "predicate": "distinguished_from",
+      "proposition": "This subject is the automobile manufacturer, not Enzo Ferrari the driver or Scuderia Ferrari the racing team.",
+      "qualifiers": [],
+      "editorialRisk": "normal",
+      "status": "verified",
+      "evidenceIds": [
+        "ev_a"
+      ],
+      "verification": "direct"
+    }
+  ],
+  "researchActions": [
+    {
+      "id": "ra1",
+      "question": "Is standalone encyclopedic coverage warranted?",
+      "method": "search",
+      "performedAt": "2026-10-08T00:00:00Z",
+      "outcome": "Major independent marque. Manufacturer site returned HTTP 403 to programmatic clients; no primary source inspected.",
+      "sourceIds": [],
+      "resolved": true
+    }
+  ],
+  "coverage": [
+    {
+      "category": "identity",
+      "state": "covered",
+      "reason": "Claim present",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "definition",
+      "state": "covered",
+      "reason": "Claim present",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "disambiguation",
+      "state": "covered",
+      "reason": "Resolved to the automaker, not the driver or the team",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "scope",
+      "state": "unresolved",
+      "reason": "Not separately researched in this run.",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "chronology",
+      "state": "unresolved",
+      "reason": "No reachable source gave a verified founding timeline",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "people_organizations",
+      "state": "unresolved",
+      "reason": "No reachable independent source on key people",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "relationships",
+      "state": "unresolved",
+      "reason": "Corporate relationships not researched",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "characteristics",
+      "state": "unresolved",
+      "reason": "Manufacturer site unreachable",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "significance",
+      "state": "unresolved",
+      "reason": "No independent assessment inspected",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "reception",
+      "state": "unresolved",
+      "reason": "No independent reception source inspected",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "controversies",
+      "state": "unresolved",
+      "reason": "Not researched",
+      "attemptIds": [
+        "ra1"
+      ],
+      "blocking": false
+    },
+    {
+      "category": "limitations",
+      "state": "unresolved",
+      "reason": "Not separately researched in this run.",
+      "attemptIds": [],
+      "blocking": false
+    },
+    {
+      "category": "editorial_cautions",
+      "state": "covered",
+      "reason": "Cautions present",
+      "attemptIds": [],
+      "blocking": false
+    }
+  ],
+  "editorialRules": [
+    {
+      "id": "r_caution",
+      "severity": "critical",
+      "directive": "context",
+      "text": "The manufacturer's own site was unreachable, so no primary source was inspected; treat all figures as unconfirmed.",
+      "groundedClaimIds": [
+        "c_identity"
+      ]
+    }
+  ],
+  "notability": {
+    "assessment": "established",
+    "rationale": "Long-established independent marque with substantial independent press coverage.",
+    "independentSourceIds": [
+      "s_ica"
+    ],
+    "researchActionIds": [
+      "ra1"
+    ]
+  },
+  "presentation": {
+    "requiredClaimIds": [
+      "c_identity",
+      "c_definition"
+    ],
+    "requiredRuleIds": [
+      "r_caution"
+    ],
+    "weights": []
+  }
+}

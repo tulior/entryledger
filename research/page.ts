@@ -92,15 +92,45 @@ export async function assertPublicUrlResolved(url:URL):Promise<void>{
       throw Error('Host resolves to a private, loopback or link-local address.');
 }
 
+
+/** Cost ceiling for a whole research run. A run that exceeds it fails loudly
+ * rather than quietly spending an unbounded amount of time and bandwidth. */
+export const DEFAULT_BUDGET={maxFetches:40,maxBytes:8_000_000,deadlineMs:180_000};
+export type Budget=typeof DEFAULT_BUDGET & {
+  /** requests made so far, including redirect hops */
+  fetches:number;
+  /** response bytes read so far */
+  bytes:number;
+  /** Date.now() at creation */
+  startedAt:number;
+};
+export class BudgetExceeded extends Error{}
+export const spent=(b:Budget)=>({fetches:b.fetches,bytes:b.bytes,ms:Date.now()-b.startedAt});
+export function newBudget(over:Partial<Budget>={}):Budget{
+  return {...DEFAULT_BUDGET,fetches:0,bytes:0,startedAt:Date.now(),...over};
+}
+/** Called before every request, so a redirect chain cannot outrun the budget. */
+function charge(b:Budget,bytes:number):void{
+  b.fetches++;
+  b.bytes+=bytes;
+  if(b.fetches>b.maxFetches)
+    throw new BudgetExceeded(`Retrieval budget exhausted: ${b.fetches} fetches (max ${b.maxFetches}).`);
+  if(b.bytes>b.maxBytes)
+    throw new BudgetExceeded(`Retrieval budget exhausted: ${b.bytes} bytes (max ${b.maxBytes}).`);
+  if(Date.now()-b.startedAt>b.deadlineMs)
+    throw new BudgetExceeded(`Retrieval budget exhausted: ${Date.now()-b.startedAt}ms elapsed (max ${b.deadlineMs}ms).`);
+}
+
 /** Fetch a bounded live representation. Redirects are checked hop by hop.
  * Every hop is DNS-resolved and refused if it lands in private/reserved space,
  * so a rebinding host cannot reach internal services (see assertPublicUrlResolved). */
-export async function livePage(url:string):Promise<Page>{
+export async function livePage(url:string, budget:Budget=newBudget()):Promise<Page>{
   let current=assertPublicUrl(url).href;
   for(let redirects=0;redirects<5;redirects++){
+    charge(budget,0);
     await assertPublicUrlResolved(new URL(current));
     const res=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(15000),
-      headers:{'User-Agent':'EntryLedger/1.0 (evidence verification)'}});
+      headers:{'User-Agent':'EntryLedger/1.0 (entryledger research)'}});
     if([301,302,303,307,308].includes(res.status)){
       const location=res.headers.get('location');
       if(!location)throw Error('Redirect without location');
@@ -119,7 +149,7 @@ export async function livePage(url:string):Promise<Page>{
       for(;;){
         const next=await reader.read();
         if(next.done)break;
-        size+=next.value.byteLength;
+        size+=next.value.byteLength; charge(budget,next.value.byteLength);
         if(size>2_000_000)throw Error('Source exceeded 2 MB');
         chunks.push(next.value);
       }
@@ -140,8 +170,9 @@ export async function livePage(url:string):Promise<Page>{
 
 /** Everything an agent needs to quote this page without guessing. */
 export type Dump = {url:string; title:string; chars:number; text:string};
-export async function dumpPage(url:string, options:{grep?:string}={}):Promise<Dump>{
-  const page=await livePage(url);
+export async function dumpPage(url:string, options:{grep?:string}={},
+  budget:Budget=newBudget()):Promise<Dump>{
+  const page=await livePage(url,budget);
   const text=options.grep
     ? page.rawText.split(/(?<=\. )/).filter((s:string)=>s.includes(options.grep!)).join('')
     : page.rawText;

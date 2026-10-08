@@ -20,6 +20,7 @@
   "include": [
     "*.ts",
     "scripts/**/*.ts",
-    "research/**/*.ts"
+    "research/**/*.ts",
+    "tools/**/*.ts"
   ]
 }
