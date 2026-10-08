@@ -2,7 +2,8 @@
 import Type from 'typebox';
 import Value from 'typebox/value';
 
-const obj=<P extends Record<string,unknown>>(properties:P)=>Type.Object(properties,{additionalProperties:false});
+const obj=<P extends Parameters<typeof Type.Object>[0]>(properties:P)=>
+  Type.Object(properties,{additionalProperties:false});
 const ID=Type.String({minLength:2,maxLength:64,pattern:'^[a-z][a-z0-9_-]{1,63}$'});
 const S=Type.String({minLength:1,pattern:'\\S'});
 const Time=Type.String({pattern:'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$'});
@@ -112,7 +113,7 @@ export const DossierStandardSchema={
    version:1 as const,vendor:'entryledger-typebox',
    validate(value:unknown){
      if(Value.Check(DossierSchema,value))return {value:value as Dossier};
-     return {issues:Value.Errors(DossierSchema,value).map(e=>({message:e.message}))};
+     return {issues:Array.from(Value.Errors(DossierSchema,value),e=>({message:e.message}))};
    },
    types:{} as {input:Dossier;output:Dossier}
  }
@@ -162,7 +163,7 @@ const distinct=<T>(items:T[]) => new Set(items).size===items.length;
 export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
   options:{allowSyntheticFixture?:boolean}={}):Promise<ValidationReport> {
   if(!Value.Check(DossierSchema,raw))return {ok:false,warnings:[],
-    errors:Value.Errors(DossierSchema,raw).map(e=>{
+    errors:Array.from(Value.Errors(DossierSchema,raw),e=>{
       const path=(e as {path?:string;instancePath?:string}).instancePath ??
         (e as {path?:string}).path ?? '/';
       return diag('SHAPE',path,e.message);
@@ -179,6 +180,13 @@ export async function validateDossier(raw:unknown, verifier:EvidenceVerifier,
   };
   d.sources.forEach((source,i)=>checkDate(source.published,`sources.${i}.published`));
   d.claims.forEach((claim,i)=>checkDate(claim.eventDate,`claims.${i}.eventDate`));
+  const checkTime=(stamp:string,path:string)=>{
+    if(!validDay(stamp.slice(0,10))||!Number.isFinite(Date.parse(stamp)))
+      errors.push(diag('INVALID_TIMESTAMP',path,'Invalid RFC3339 date-time.'));
+  };
+  d.sources.forEach((s,i)=>checkTime(s.accessed,`sources.${i}.accessed`));
+  d.evidence.forEach((e,i)=>checkTime(e.observedAt,`evidence.${i}.observedAt`));
+  d.researchActions.forEach((a,i)=>checkTime(a.performedAt,`researchActions.${i}.performedAt`));
   const fail=(code:string,path:string,message:string)=>errors.push(diag(code,path,message));
   const warn=(code:string,path:string,message:string)=>warnings.push(diag(code,path,message,'warning'));
   if(d.origin==='synthetic_fixture' && !options.allowSyntheticFixture)
