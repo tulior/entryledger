@@ -10,7 +10,7 @@ bun test
 bun run schema:export > dossier.schema.json
 \`\`\`
 
-The three dependencies are exactly pinned in package.json. No npm, Zod,
+The three dependencies have exact pins in package.json (live newest-release status has not been independently verified). No npm, Zod,
 upgrade scripts, old schema versions or migration code. After a real
 installation, commit bun.lock for reproducibility; a lockfile must never be
 fabricated.
