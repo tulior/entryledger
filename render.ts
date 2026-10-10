@@ -14,6 +14,12 @@ const bgeProxy=(s:string)=>
 export type CostEstimate=(text:string)=>number; // injectable real BGE tokenizer counter
 export type Artifacts=readonly [proposedArticleTitle:string, editorialBrief:string];
 
+/** The consumer reads artifacts.json, not this process's string, so the cap is
+ *  measured on the serialised brief: a newline costs two characters there, not
+ *  one, and checking the in-memory string certifies artifacts the consumer
+ *  rejects. The brief is joined on spaces and never contains a newline. */
+const deliveredLength=(brief:string)=>JSON.stringify(brief).length;
+
 /** A segment the character cap could not fit. Rendering is lossy by design, so
  *  what it discarded is reported rather than left for the caller to discover. */
 export type DroppedSegment={
@@ -131,11 +137,12 @@ function pack(validated:ValidatedDossier, options:RenderOptions={}):RenderAudit{
       return `${citations.get(id)} ${s.url} (${s.kind}; ${s.published?.value??'date unknown'})`;
     });
     if(bibliography.length) lines.push('SOURCES:',...bibliography);
-    return lines.join('\n');
+    return lines.join(' ');
   };
   // Mandatory safety information and references must fit in full, or rendering fails.
   let result=compose();
-  if(result.length>max) throw Error(`MANDATORY_OVERFLOW: ${result.length} > ${max}`);
+  const mandatory=deliveredLength(result);
+  if(mandatory>max) throw Error(`MANDATORY_OVERFLOW: ${mandatory} > ${max}`);
   const optional=segments.filter(s=>!s.mandatory).sort((a,b)=>{
     const aDensity=a.utility/countTokens(a.text), bDensity=b.utility/countTokens(b.text);
     return bDensity-aDensity || b.utility-a.utility || a.id.localeCompare(b.id);
@@ -143,14 +150,15 @@ function pack(validated:ValidatedDossier, options:RenderOptions={}):RenderAudit{
   for(const s of optional){
     const id=`${s.kind}:${s.id}`; ids.add(id);
     const trial=compose();
-    if(trial.length<=max) result=trial;
+    if(deliveredLength(trial)<=max) result=trial;
     else ids.delete(id);
   }
   // Re-render from selected IDs to defend against algorithm changes.
   result=compose();
-  if(result.length>max) throw Error('RENDER_OVERFLOW');
+  if(deliveredLength(result)>max) throw Error('RENDER_OVERFLOW');
   if(!/\[[Ss]\d+:/.test(result)) throw Error('NO_INLINE_CITATIONS');
   if(result.includes('\u0000')) throw Error('INVALID_TEXT');
+  if(/[\r\n]/.test(result)) throw Error('DELIVERED_NEWLINE');
   const artifacts=Object.freeze([quoteChar(d.article.title),result]) as Artifacts;
   const included=ORDER.filter(cat=>segments.some(s=>ids.has(`${s.kind}:${s.id}`)&&s.category===cat));
   // A category that asserted something and then rendered nothing is silent data
@@ -160,7 +168,7 @@ function pack(validated:ValidatedDossier, options:RenderOptions={}):RenderAudit{
     !segments.some(s=>s.category===cat&&ids.has(`${s.kind}:${s.id}`)));
   const dropped=segments.filter(s=>!ids.has(`${s.kind}:${s.id}`))
     .map(s=>({id:s.id,kind:s.kind,category:s.category,chars:s.text.length}));
-  return Object.freeze({artifacts,chars:artifacts[1].length,maxChars:max,included,dropped,lostCategories});
+  return Object.freeze({artifacts,chars:JSON.stringify(artifacts[1]).length,maxChars:max,included,dropped,lostCategories});
 }
 
 const lossError=(lost:readonly string[],chars:number,max:number)=>

@@ -95,6 +95,14 @@ critical cautions in full, and carries inline `[S1:locator]` citations with a
 bibliography. If a load-bearing category is crowded out entirely, the renderer
 refuses rather than publishing a brief that reads as complete.
 
+The cap is measured on the brief **as delivered**, not as a string in this
+process: the budget is `JSON.stringify(brief).length`, which is what a consumer
+reading `artifacts.json` counts. A newline would serialise to the two-character
+escape `\n` and blow the cap, so the brief is a single line with sections
+separated by spaces. Nothing is post-processed to achieve this; the renderer
+simply never writes a newline.
+
+
 ## What a green check does and does not mean
 
 `dossier:check` passing means the dossier is **structurally sound and nothing

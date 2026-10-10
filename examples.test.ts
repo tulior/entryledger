@@ -126,11 +126,22 @@ test('renderer emits exactly two deterministic artifacts',()=>{
   expect(renderArtifacts(ready())).toEqual(pair);
 });
 
+test('the brief survives delivery: single line, inside the delivered cap',()=>{
+  const brief=renderArtifacts(ready())[1];
+  // A newline serialises to the two-character escape \n, so the delivered
+  // artifact would disagree with the in-memory string the budget was checked
+  // against — the cap has to be measured on the serialised form.
+  expect(brief).not.toMatch(/[\r\n]/);
+  expect(JSON.stringify(brief).length).toBeLessThanOrEqual(5000);
+});
+
 test('every citation marker resolves to a source in the bibliography',()=>{
   const brief=renderArtifacts(ready())[1];
   const used=[...brief.matchAll(/\[S(\d+):/g)].map(m=>Number(m[1]));
   expect(used.length).toBeGreaterThan(0);
-  const listed=new Set([...brief.matchAll(/^S(\d+) https/gm)].map(m=>Number(m[1])));
+  // The brief is delivered as a single line, so bibliography entries are
+  // anchored on the SOURCES: marker rather than on a line start.
+  const listed=new Set([...brief.matchAll(/(?:^|\s)S(\d+) https/g)].map(m=>Number(m[1])));
   for(const id of used) expect(listed.has(id)).toBe(true);
 });
 

@@ -18,5 +18,8 @@ try{
   await writeFile(temp,JSON.stringify(artifacts,null,2)+'\n',{flag:'wx'});
   await rename(temp,'out/artifacts.json');
 }finally{await rm(temp,{force:true});}
-console.log('out/artifacts.json —',artifacts[1].length,'chars');
+// Report the delivered length: what the consumer's own 5000 cap is measured
+// against, which is JSON.stringify, not this process's string.
+console.log('out/artifacts.json —',JSON.stringify(artifacts[1]).length,
+  'chars as delivered (JSON),',artifacts[1].length,'in memory, cap',5000);
 console.log('Content is NOT verified. The consumer must check every reference.');

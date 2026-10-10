@@ -63,6 +63,13 @@ bibliography. Mandatory content — verified identity, sourced definition, state
 limitations, critical cautions — is never truncated. If it cannot fit, rendering
 fails rather than quietly dropping it.
 
+The cap counts the brief **as delivered** — `JSON.stringify(brief).length`, the
+figure a consumer reading `artifacts.json` sees — not the in-memory string. The
+two differ, and the difference is not academic: a brief of 4,990 characters
+containing 20 newlines is 5,012 characters once serialized and is rejected. So
+the brief is a single line. Checking a budget against the in-memory string
+certifies artifacts the consumer will refuse.
+
 ## What blocks and what warns
 
 Errors are **shape** problems: the dossier is malformed and should be fixed.
